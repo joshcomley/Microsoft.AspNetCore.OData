@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Vocabularies\CapabilitiesVocabularies.xml" />
+    <EmbeddedResource Include="Vocabularies\CoreVocabularies.xml" />
+    <EmbeddedResource Include="Vocabularies\MeasuresVocabularies.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Iql" Version="0.0.12-preview1" />
+    <PackageReference Include="Iql.DotNet" Version="0.0.12-preview1" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Data.Edm" Version="5.8.3" />
+    <PackageReference Include="Microsoft.OData.Core" Version="7.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.csproj" />
+  </ItemGroup>
+
+</Project>

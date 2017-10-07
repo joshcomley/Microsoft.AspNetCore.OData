@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\External\Brandless.Data.EntityFramework\Brandless.Data.EntityFramework.csproj" />
+    <ProjectReference Include="..\..\External\Brandless.Data\Brandless.Data.csproj" />
+    <ProjectReference Include="..\..\External\Brandless\Brandless.csproj" />
+    <ProjectReference Include="..\Microsoft.AspNetCore.OData.Extensions\Microsoft.AspNetCore.OData.Extensions.csproj" />
+    <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Users\" />
+  </ItemGroup>
+
+</Project>
