@@ -1,0 +1,15 @@
+<Project>
+  <Import Project="..\..\version.xml" />
+  <PropertyGroup>
+    <PackageTags>Microsoft.AspNetCore.OData</PackageTags>
+    <Product>Microsoft.AspNetCore.OData</Product>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)Key.snk</AssemblyOriginatorKeyFile>
+    <PublicSign Condition="'$(OS)' != 'Windows_NT'">True</PublicSign>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/joshcomley/Microsoft.AspNetCore.OData</RepositoryUrl>
+    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+    <DebugType Condition="'$(Configuration)' == 'Debug' AND '$(OS)' == 'Windows_NT'">full</DebugType>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
