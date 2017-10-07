@@ -5,14 +5,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Brandless" Version="0.0.1" />
+    <PackageReference Include="Brandless.Data" Version="0.0.1" />
+    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.4" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\External\Brandless.Data.EntityFramework\Brandless.Data.EntityFramework.csproj" />
-    <ProjectReference Include="..\..\External\Brandless.Data\Brandless.Data.csproj" />
-    <ProjectReference Include="..\..\External\Brandless\Brandless.csproj" />
     <ProjectReference Include="..\Microsoft.AspNetCore.OData.Extensions\Microsoft.AspNetCore.OData.Extensions.csproj" />
     <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.csproj" />
   </ItemGroup>
