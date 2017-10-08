@@ -59,6 +59,15 @@ namespace Microsoft.AspNetCore.OData.EntityFramework
                                                 dependentEntityTypeName,
                                                 partnerDependentProperties);
                                         }
+                                        switch (navigationProperty.OnDeleteAction)
+                                        {
+                                            case EdmOnDeleteAction.Cascade:
+                                                referenceReferenceBuilder.OnDelete(DeleteBehavior.Cascade);
+                                                break;
+                                            case EdmOnDeleteAction.None:
+                                                referenceReferenceBuilder.OnDelete(DeleteBehavior.ClientSetNull);
+                                                break;
+                                        }
                                         break;
                                     case EdmMultiplicity.Many:
                                         var referenceCollectionBuilder =
@@ -72,6 +81,15 @@ namespace Microsoft.AspNetCore.OData.EntityFramework
                                         {
                                             referenceCollectionBuilder.HasPrincipalKey(
                                                 principalProperties);
+                                        }
+                                        switch (navigationProperty.OnDeleteAction)
+                                        {
+                                            case EdmOnDeleteAction.Cascade:
+                                                referenceCollectionBuilder.OnDelete(DeleteBehavior.Cascade);
+                                                break;
+                                            case EdmOnDeleteAction.None:
+                                                referenceCollectionBuilder.OnDelete(DeleteBehavior.ClientSetNull);
+                                                break;
                                         }
                                         break;
                                 }
@@ -98,6 +116,15 @@ namespace Microsoft.AspNetCore.OData.EntityFramework
                                         {
                                             referenceCollectionBuilder.HasForeignKey(
                                                 principalProperties);
+                                        }
+                                        switch (navigationProperty.OnDeleteAction)
+                                        {
+                                            case EdmOnDeleteAction.Cascade:
+                                                referenceCollectionBuilder.OnDelete(DeleteBehavior.Cascade);
+                                                break;
+                                            case EdmOnDeleteAction.None:
+                                                referenceCollectionBuilder.OnDelete(DeleteBehavior.ClientSetNull);
+                                                break;
                                         }
                                         break;
                                 }
