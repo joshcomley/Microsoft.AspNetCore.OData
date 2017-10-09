@@ -6,9 +6,10 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Brandless.Data;
 using Brandless.Data.Contracts;
+using Brandless.Data.Entities;
 using Brandless.Data.EntityFramework.Crud;
 using Brandless.Data.Models;
-using Iql.Queryable.Data;
+using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.EntityFramework.Extensions;
@@ -19,6 +20,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData;
 using Newtonsoft.Json.Linq;
+using ObjectExtensions = Iql.Queryable.Data.ObjectExtensions;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 {
@@ -37,7 +39,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         protected const string IdSlash = Id + "/";
         protected const string SingleId = "(id=" + Id + ")";
 
-        public IEdmModelAccessor ModelAccessor => Data.ModelAccessor;
+        public virtual IEdmModelAccessor ModelAccessor => Data.ModelAccessor;
         protected virtual CrudBase<TDbContextSecured, TDbContextUnsecured, T> Crud => Data.Crud;
 
         protected ODataControllerData<TDbContextSecured, TDbContextUnsecured, TUser, T>
@@ -46,10 +48,10 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             Services,
                             new CrudBase<TDbContextSecured, TDbContextUnsecured, T>(Services)));
 
-        public TDbContextSecured Context => Data.Context;
-        public UserManager<TUser> UserManager => Data.UserManager;
-        public IRevisionKeyGenerator RevisionKeyGenerator => Data.RevisionKeyGenerator;
-        public IServiceProvider Services => HttpContext.RequestServices;
+        public virtual TDbContextSecured Context => Data.Context;
+        public virtual UserManager<TUser> UserManager => Data.UserManager;
+        public virtual IRevisionKeyGenerator RevisionKeyGenerator => Data.RevisionKeyGenerator;
+        public virtual IServiceProvider Services => HttpContext.RequestServices;
 
 
         #region Security
@@ -130,7 +132,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return await Patch(keys, ResolveJObject(), currentEntity);
         }
 
-        private JObject ResolveJObject()
+        protected virtual JObject ResolveJObject()
         {
             return PostedJson == null
                 ? new JObject()
@@ -142,7 +144,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Task.FromResult(entity);
         }
 
-        protected async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentEntity)
+        protected virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentEntity)
         {
             await OnValidate(PostedEntity, value);
             return await Patch(key, value, currentEntity, PostedEntity);
@@ -160,7 +162,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return result;
         }
 
-        protected IActionResult ResolveHttpResult(ApiActionResult apiActionResult)
+        protected virtual IActionResult ResolveHttpResult(ApiActionResult apiActionResult)
         {
             IActionResult result = Ok("");
             if (!apiActionResult.Success)
@@ -197,14 +199,14 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return updateResult;
         }
 
-        private async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject value)
+        protected virtual async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject value)
         {
             await OnBeforeFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
             PatchEntityProperties(currentEntity, patchEntity, value);
             await OnAfterFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
         }
 
-        private void PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
+        protected virtual void PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
         {
             foreach (var property in value)
             {
@@ -231,8 +233,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     IList dbList = null;
                     if (invoke != null)
                     {
-                        dbList = (IList)invoke
-                            .GetPropertyValue(propertyInfo.Name);
+                        dbList = (IList)ObjectExtensions.GetPropertyValue(invoke, propertyInfo.Name);
                     }
                     var entityKey = Crud.Unsecured.Context.Model.FindEntityType(childEntityType).GetKeys()
                         .Single(k => k.IsPrimaryKey());
@@ -252,8 +253,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                 var match = true;
                                 foreach (var keyProperty in entityKey.Properties)
                                 {
-                                    var dbValue = dbChild.GetPropertyValue(keyProperty.Name);
-                                    var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
+                                    var dbValue = ObjectExtensions.GetPropertyValue(dbChild, keyProperty.Name);
+                                    var submittedValue = ObjectExtensions.GetPropertyValue(submittedChild, keyProperty.Name);
                                     if (!Equals(dbValue, submittedValue))
                                     {
                                         match = false;
@@ -279,7 +280,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                         {
                             foreach (var keyProperty in entityKey.Properties)
                             {
-                                var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
+                                var submittedValue = ObjectExtensions.GetPropertyValue(submittedChild, keyProperty.Name);
                                 if (submittedValue.IsDefaultValue())
                                 {
                                     dbList.Add(submittedChild);
@@ -298,7 +299,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             var isNew = false;
                             foreach (var keyProperty in entityKey.Properties)
                             {
-                                var propertyValue = child.GetPropertyValue(keyProperty.Name);
+                                var propertyValue = ObjectExtensions.GetPropertyValue(child, keyProperty.Name);
                                 if (propertyValue.IsDefaultValue())
                                 {
                                     isNew = true;
@@ -312,8 +313,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                     var match = true;
                                     foreach (var keyProperty in entityKey.Properties)
                                     {
-                                        var localValue = child.GetPropertyValue(keyProperty.Name);
-                                        var submittedValue = submittedList[i].GetPropertyValue(keyProperty.Name);
+                                        var localValue = ObjectExtensions.GetPropertyValue(child, keyProperty.Name);
+                                        var submittedValue = ObjectExtensions.GetPropertyValue(submittedList[i], keyProperty.Name);
                                         if (!Equals(localValue, submittedValue))
                                         {
                                             match = false;
@@ -352,9 +353,9 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             }
         }
 
-        public TEntity GetAndInclude<TEntity>(TEntity entity, string property) where TEntity : class
+        public virtual TEntity GetAndInclude<TEntity>(TEntity entity, string property) where TEntity : class
         {
-            var keys = Crud.Secured.IdProperties.Select(p => new KeyValue(p.Name, entity.GetPropertyValue(p.Name)))
+            var keys = Crud.Secured.IdProperties.Select(p => new KeyValue(p.Name, ObjectExtensions.GetPropertyValue(entity, p.Name)))
                 .ToArray();
             var expression = CrudHelper.KeyEqualsExpression<TEntity>(keys);
             return Crud.Secured.Context.Set<TEntity>().Include(property).Where(
@@ -419,7 +420,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         /// into the database. Clear all of these, for now.
         /// </summary>
         /// <param name="patchEntity"></param>
-        private void ClearClassProperties(T patchEntity)
+        protected virtual void ClearClassProperties(T patchEntity)
         {
             if (patchEntity == null)
             {
@@ -447,6 +448,9 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual Task OnBeforePostAsync(T currentEntity, T patchEntity, JObject jObject)
         {
+            currentEntity.TryAs<ICreatedBy<TUser>>(e => { e.CreatedByUserId = GetCurrentUserId(); });
+            currentEntity.TryAs<ICreatedDate>(e => { e.CreatedDate = DateTime.UtcNow; });
+            currentEntity.TryAs<IHasGuid>(e => { e.Guid = Guid.NewGuid(); });
             return Task.FromResult(true);
         }
 
@@ -487,10 +491,10 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             set { PostedEntity = (T)value; }
         }
 
-        public T PostedEntity { get; set; }
-        public string PostedJson { get; set; }
+        public virtual T PostedEntity { get; set; }
+        public virtual string PostedJson { get; set; }
 
-        public Type EntityType => typeof(T);
+        public virtual Type EntityType => typeof(T);
         object IODataCrudController.FindEntityById(params object[] id)
         {
             return FindEntityById(id);
