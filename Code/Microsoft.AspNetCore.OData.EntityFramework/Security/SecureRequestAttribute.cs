@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Security
 {
-    public abstract class SecureRequestAttribute : ODataModelAttribute
+    public abstract class SecureRequestAttribute : ODataModelBaseAttribute
     {
         const string HttpKey = nameof(SecureRequestAttribute);
         public bool CheckId { get; set; } = true;
@@ -38,7 +38,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Security
 
         protected SecureRequestAttribute()
         {
-            // Make sure this runs AFTER ValidateModelAttribute
+            // Make sure this runs AFTER LoadModelAttribute
             Order = 1;
         }
 

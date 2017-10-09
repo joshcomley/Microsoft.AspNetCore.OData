@@ -21,7 +21,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 return;
             }
             var value = JObject.Parse(valueString);
-            controller.PostedEntity = (controller as Controller).GetODataModel(controller.EntityType, value, false);
+            controller.PostedEntity = (controller as Controller).GetODataModel(controller.EntityType, value);
             controller.PostedJson = valueString;
             if (controller.PostedEntity == null)
             {

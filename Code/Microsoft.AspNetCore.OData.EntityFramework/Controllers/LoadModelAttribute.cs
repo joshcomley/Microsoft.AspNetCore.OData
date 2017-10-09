@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 {
-    public class ValidateModelAttribute : ODataModelAttribute
+    public class LoadModelAttribute : ODataModelBaseAttribute
     {
-        public ValidateModelAttribute()
+        public LoadModelAttribute()
         {
             Order = 0;
         }
@@ -13,10 +13,10 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public override async Task ActionExecutionAsync(ActionExecutingContext context)
         {
             //var str = await context.HttpContext.GetHttpRequestMessage().Content.ReadAsStringAsync();
-            if (!Controller.ModelState.IsValid)
-            {
-                context.Result = Controller.ODataModelStateError();
-            }
+            //if (!Controller.ModelState.IsValid)
+            //{
+            //    context.Result = Controller.ODataModelStateError();
+            //}
             //return false;
             //return Task.FromResult(false);
         }

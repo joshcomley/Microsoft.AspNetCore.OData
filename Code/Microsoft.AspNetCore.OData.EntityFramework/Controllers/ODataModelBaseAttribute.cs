@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 {
-    public abstract class ODataModelAttribute : ActionFilterAttribute
+    public abstract class ODataModelBaseAttribute : ActionFilterAttribute
     {
         public IODataCrudController ODataController { get; set; }
         public Controller Controller { get; set; }

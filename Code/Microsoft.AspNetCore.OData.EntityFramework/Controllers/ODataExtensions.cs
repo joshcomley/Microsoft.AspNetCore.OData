@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.OData;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -55,18 +57,18 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return controller.Ok(controller.ModelState.ToODataError(errorCode, errorMessage));
         }
 
-        public static T GetODataModel<T>(this Controller controller, JObject obj, bool isPatch)
+        public static T GetODataModel<T>(this Controller controller, JObject obj)
         {
-            return (T)controller.GetODataModel(typeof(T), obj, isPatch);
+            return (T)controller.GetODataModel(typeof(T), obj);
         }
 
-        public static object GetODataModel(this Controller controller, Type type, JObject obj, bool isPatch)
+        public static object GetODataModel(this Controller controller, Type type, JObject obj)
         {
             if (controller.ModelState.Any())
             {
                 controller.ModelState.Clear();
             }
-            if (isPatch)
+            if (controller.HttpContext.Request.IsODataPatch())
             {
                 // If we're patching, we only care about the properties
                 // we're trying to update

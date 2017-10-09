@@ -12,7 +12,6 @@ using Brandless.Data.Models;
 using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.OData.EntityFramework.Extensions;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Routing.Conventions;
 using Microsoft.EntityFrameworkCore;
@@ -90,7 +89,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region POST
         // POST api/[Entities]
         [HttpPost]
-        //[ValidateModel]
+        [LoadModel]
         public virtual async Task<IActionResult> Post()
         {
             var jobject = ResolveJObject();
@@ -124,7 +123,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region PATCH
         // PATCH api/[Entities]/5
         [HttpPatch("{key}")]
-        //[ValidateModel]
+        [LoadModel]
         public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
         {
             var entity = Crud.Secured.Find(keys);
@@ -313,7 +312,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                     var match = true;
                                     foreach (var keyProperty in entityKey.Properties)
                                     {
-                                        var localValue = ObjectExtensions.GetPropertyValue(child, keyProperty.Name);
+                                        var localValue = child.GetPropertyValue(keyProperty.Name);
                                         var submittedValue = ObjectExtensions.GetPropertyValue(submittedList[i], keyProperty.Name);
                                         if (!Equals(localValue, submittedValue))
                                         {
@@ -367,7 +366,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region PUT
         // PUT api/[Entities]/5
         [HttpPut("{key}")]
-        //[ValidateModel]
+        [LoadModel]
         public virtual async Task<IActionResult> Put([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
         {
             return await Patch(keys);

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Linq;
+using System.Net.Http;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -13,6 +15,13 @@ namespace Microsoft.AspNetCore.OData.Extensions
 {
     public static class HttpRequestExtensions
     {
+        public static bool IsODataPatch(this HttpRequest request)
+        {
+            var strings = new[] {HttpMethod.Post.Method, HttpMethod.Put.Method};
+            return strings.Any(
+                method => request.Method.Equals(method, StringComparison.OrdinalIgnoreCase));
+        }
+
         public static IODataFeature ODataFeature(this HttpRequest request)
         {
             if (request == null)
