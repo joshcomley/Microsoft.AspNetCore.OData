@@ -105,7 +105,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 await OnBeforePostAndPatchAsync(entity, patchEntity, value);
                 await OnBeforePostAsync(entity, patchEntity, value);
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
-
+                ModelState.Clear();
+                if (!ValidateEntity(entity))
+                {
+                    return this.ODataModelStateError();
+                }
                 //var locationUri = $"{req.Protocol}://{req.Host}/{req.Path}/{Crud.EntityId(entity)}";
                 var result = await Crud.Secured.AddAndSaveAsync(entity);
                 if (!result.Success)
@@ -143,22 +147,68 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Task.FromResult(entity);
         }
 
-        protected virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentEntity)
+        protected virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentDatabaseEntity)
         {
             await OnValidate(PostedEntity, value);
-            return await Patch(key, value, currentEntity, PostedEntity);
+            return await Patch(key, value, currentDatabaseEntity, PostedEntity);
         }
 
-        public virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentEntity, T patchEntity)
+        public virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentDatabaseEntity, T patchEntity)
         {
-            await OnBeforePostAndPatchAsync(currentEntity, patchEntity, value);
-            await OnBeforePatchAsync(key, currentEntity, patchEntity, value);
-            await PatchObjectWithLegalPropertiesAsync(currentEntity, patchEntity, value);
-            var oDataActionResult = await UpdateAsync(currentEntity);
+            await OnBeforePostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
+            await OnBeforePatchAsync(key, currentDatabaseEntity, patchEntity, value);
+            await PatchObjectWithLegalPropertiesAsync(currentDatabaseEntity, patchEntity, value);
+            ModelState.Clear();
+            if (!ValidateEntity(currentDatabaseEntity))
+            {
+                return this.ODataModelStateError();
+            }
+            var oDataActionResult = await UpdateAsync(currentDatabaseEntity);
             var result = ResolveHttpResult(oDataActionResult);
-            await OnAfterPatchAsync(key, currentEntity, patchEntity, value);
-            await OnAfterPostAndPatchAsync(currentEntity, patchEntity, value);
+            await OnAfterPatchAsync(key, currentDatabaseEntity, patchEntity, value);
+            await OnAfterPostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
             return result;
+        }
+
+        public virtual bool ValidateEntity(object entity)
+        {
+            var isValid = TryValidateModel(entity);
+            var entityType = entity.GetType();
+            foreach (var property in entityType.GetRuntimeProperties())
+            {
+                var propertyType = property.PropertyType;
+                var elementType = propertyType;
+                var isSimpleEnumerable = false;
+                if (typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType)
+                {
+                    var genericArguments = propertyType.GetGenericArguments();
+                    if (genericArguments.Length == 1)
+                    {
+                        elementType = genericArguments[0];
+                        isSimpleEnumerable = true;
+                    }
+                }
+                var relatedEntityType = Crud.Unsecured.Context.Model.FindEntityType(elementType);
+                if (relatedEntityType != null)
+                {
+                    var value = entity.GetPropertyValue(property.Name);
+                    if (value != null)
+                    {
+                        if (isSimpleEnumerable)
+                        {
+                            foreach (var element in (IEnumerable) value)
+                            {
+                                isValid = isValid && ValidateEntity(element);
+                            }
+                        }
+                        else
+                        {
+                            isValid = isValid && ValidateEntity(value);
+                        }
+                    }
+                }
+            }
+            return isValid;
         }
 
         protected virtual IActionResult ResolveHttpResult(ApiActionResult apiActionResult)
@@ -226,7 +276,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                         .MakeGenericMethod(entityType);
                     var invoke = methodInfo
                         .Invoke(this, new object[] { currentEntity, propertyInfo.Name });
-                    //var submittedList = (IList)currentEntity.GetPropertyValue(propertyInfo.Name);
+                    //var submittedList = (IList)currentDatabaseEntity.GetPropertyValue(propertyInfo.Name);
                     var submittedList = (IList)patchedValue;
                     //var patchedList = (IList)patchedValue;
                     IList dbList = null;

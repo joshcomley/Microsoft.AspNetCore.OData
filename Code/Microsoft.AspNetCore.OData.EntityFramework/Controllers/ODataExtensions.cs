@@ -64,32 +64,29 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public static object GetODataModel(this Controller controller, Type type, JObject obj)
         {
-            if (controller.ModelState.Any())
-            {
-                controller.ModelState.Clear();
-            }
-            if (controller.HttpContext.Request.IsODataPatch())
-            {
-                // If we're patching, we only care about the properties
-                // we're trying to update
-                foreach (var jProperty in obj.PropertyValues())
-                {
-                    ValidateProperty(controller, obj, type.GetProperty(jProperty.Path));
-                }
-            }
-            else
-            {
-                foreach (var property in type.GetProperties())
-                {
-                    ValidateProperty(controller, obj, property);
-                }
-            }
+            //if (controller.ModelState.Any())
+            //{
+            //    controller.ModelState.Clear();
+            //}
+            //if (controller.HttpContext.Request.IsODataPatch())
+            //{
+            //    // If we're patching, we only care about the properties
+            //    // we're trying to update
+            //    foreach (var jProperty in obj.PropertyValues())
+            //    {
+            //        ValidateProperty(controller, obj, type.GetProperty(jProperty.Path));
+            //    }
+            //}
+            //else
+            //{
+            //    foreach (var property in type.GetProperties())
+            //    {
+            //        ValidateProperty(controller, obj, property);
+            //    }
+            //}
             var value = GetDefaultValue(type);
-            if (controller.ModelState.IsValid)
-            {
-                var jsonSerializer = JsonSerializer.CreateDefault();
-                value = obj.ToObject(type, jsonSerializer);
-            }
+            var jsonSerializer = JsonSerializer.CreateDefault();
+            value = obj.ToObject(type, jsonSerializer);
             return value;
         }
 
