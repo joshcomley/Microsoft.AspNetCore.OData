@@ -36,6 +36,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         where TDbContextUnsecured : DbContext
     {
         private ODataControllerData<TDbContextSecured, TDbContextUnsecured, TUser, T> _data;
+        private MethodInfo _validateEntityMethod;
         protected const string Id = "{key}";
         protected const string IdSlash = Id + "/";
         protected const string SingleId = "(id=" + Id + ")";
@@ -108,7 +109,6 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 await OnBeforePostAsync(entity, patchEntity, value);
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
                 ModelState.Clear();
-                var customValidation = ValidationMap.ForType<T>();
                 if (!ValidateEntity(entity))
                 {
                     return this.ODataModelStateError();
@@ -126,6 +126,105 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return this.ODataModelStateError();
         }
         #endregion POST
+
+        #region VALIDATION
+
+        protected MethodInfo ValidateEntityMethod
+        {
+            get
+            {
+                if (_validateEntityMethod == null)
+                {
+                    _validateEntityMethod = GetType().GetMethod(nameof(ValidateEntity));
+                }
+                return _validateEntityMethod;
+            }
+        }
+
+        protected bool InvokeValidateEntity(object entity, string path)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+            return (bool) ValidateEntityMethod.MakeGenericMethod(entity.GetType())
+                .Invoke(this, new[] {entity, path});
+        }
+
+        public virtual bool ValidateEntity<TEntity>(TEntity entity, string path = "")
+        {
+            var iqlValidation = ValidationMap.ForType<TEntity>();
+            var accessor = string.IsNullOrWhiteSpace(path) ? "" : ".";
+            var isValid = TryValidateModel(entity);
+            if (iqlValidation?.EntityValidations != null)
+            {
+                foreach (var entityValidation in iqlValidation.EntityValidations)
+                {
+                    var iqlValidationResult = entityValidation.ValidationFunction(entity);
+                    isValid = isValid && iqlValidationResult;
+                    if (!iqlValidationResult)
+                    {
+                        ModelState.AddModelError(path, entityValidation.Message);
+                    }
+                }
+            }
+            if (iqlValidation?.PropertyValidations != null)
+            {
+                foreach (var propertyValidationCollection in iqlValidation.PropertyValidations)
+                {
+                    foreach (var propertyValidation in propertyValidationCollection.Validations)
+                    {
+                        var iqlValidationResult = propertyValidation.ValidationFunction(entity);
+                        isValid = isValid && iqlValidationResult;
+                        if (!iqlValidationResult)
+                        {
+                            ModelState.AddModelError($"{path}{accessor}{propertyValidationCollection.PropertyName}", propertyValidation.Message);
+                        }
+                    }
+                }
+            }
+            var entityType = entity.GetType();
+            foreach (var property in entityType.GetRuntimeProperties())
+            {
+                var propertyType = property.PropertyType;
+                var elementType = propertyType;
+                var isSimpleEnumerable = false;
+                if (typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType)
+                {
+                    var genericArguments = propertyType.GetGenericArguments();
+                    if (genericArguments.Length == 1)
+                    {
+                        elementType = genericArguments[0];
+                        isSimpleEnumerable = true;
+                    }
+                }
+                var relatedEntityType = Crud.Unsecured.Context.Model.FindEntityType(elementType);
+                if (relatedEntityType != null)
+                {
+                    var value = entity.GetPropertyValue(property.Name);
+                    if (value != null)
+                    {
+                        if (isSimpleEnumerable)
+                        {
+                            var i = 0;
+                            foreach (var element in (IEnumerable)value)
+                            {
+                                var childPath = $"{path}{accessor}{property.Name}[{i}]";
+                                isValid = isValid && InvokeValidateEntity(element, childPath);
+                                i++;
+                            }
+                        }
+                        else
+                        {
+                            var childPath = $"{path}{accessor}{property.Name}";
+                            isValid = isValid && InvokeValidateEntity(value, childPath);
+                        }
+                    }
+                }
+            }
+            return isValid;
+        }
+        #endregion VALIDATION
 
         #region PATCH
         // PATCH api/[Entities]/5
@@ -171,47 +270,6 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             await OnAfterPatchAsync(key, currentDatabaseEntity, patchEntity, value);
             await OnAfterPostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
             return result;
-        }
-
-        public virtual bool ValidateEntity(object entity)
-        {
-            var isValid = TryValidateModel(entity);
-            var entityType = entity.GetType();
-            foreach (var property in entityType.GetRuntimeProperties())
-            {
-                var propertyType = property.PropertyType;
-                var elementType = propertyType;
-                var isSimpleEnumerable = false;
-                if (typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType)
-                {
-                    var genericArguments = propertyType.GetGenericArguments();
-                    if (genericArguments.Length == 1)
-                    {
-                        elementType = genericArguments[0];
-                        isSimpleEnumerable = true;
-                    }
-                }
-                var relatedEntityType = Crud.Unsecured.Context.Model.FindEntityType(elementType);
-                if (relatedEntityType != null)
-                {
-                    var value = entity.GetPropertyValue(property.Name);
-                    if (value != null)
-                    {
-                        if (isSimpleEnumerable)
-                        {
-                            foreach (var element in (IEnumerable) value)
-                            {
-                                isValid = isValid && ValidateEntity(element);
-                            }
-                        }
-                        else
-                        {
-                            isValid = isValid && ValidateEntity(value);
-                        }
-                    }
-                }
-            }
-            return isValid;
         }
 
         protected virtual IActionResult ResolveHttpResult(ApiActionResult apiActionResult)

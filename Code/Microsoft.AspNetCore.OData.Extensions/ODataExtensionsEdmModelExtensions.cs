@@ -4,7 +4,10 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Xml;
+using Iql.DotNet;
 using Iql.DotNet.Serialization;
+using Iql.Parsing;
+using Iql.Queryable;
 using Microsoft.AspNetCore.OData.Extensions.Extensions;
 using Microsoft.AspNetCore.OData.Extensions.Validation;
 using Microsoft.Data.Edm;
@@ -204,6 +207,11 @@ namespace Microsoft.AspNetCore.OData.Extensions
                 var property = type.Properties().Single(p => p.Name == propertyName);
                 target = property;
             }
+            IqlQueryableAdapter.ExpressionConverter = () => new ExpressionToIqlConverter();
+            //var iql = ExpressionToIqlExpressionParser<TEntity>.Parse(validationExpression);
+            //var parser =
+            //    new ActionParserInstance<ODataIqlData, ODataIqlExpressionAdapter>(new ODataIqlExpressionAdapter());
+
             var expressionLabel = new EdmLabeledExpression("Expression", expression);
             var messageLabel = new EdmLabeledExpression("Message", new EdmStringConstant(message));
             var coll = new EdmCollectionExpression(expressionLabel, messageLabel);

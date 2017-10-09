@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Libuv.Internal.Networking;
 using Microsoft.OData.Edm;
 
 namespace Microsoft.AspNetCore.OData.Extensions.Validation
@@ -56,8 +57,11 @@ namespace Microsoft.AspNetCore.OData.Extensions.Validation
     //        public Expression ValidationExpression { get; }
     public class EntityValidation<TEntity> : IEntityValidation
     {
+        private Func<TEntity, bool> _validationFunction;
         public string Message { get; }
         public Expression<Func<TEntity, bool>> ValidationExpression { get; }
+
+        public Func<TEntity, bool> ValidationFunction => _validationFunction ?? (_validationFunction = ValidationExpression.Compile());
 
         Expression IEntityValidation.ValidationExpression => ValidationExpression;
 
