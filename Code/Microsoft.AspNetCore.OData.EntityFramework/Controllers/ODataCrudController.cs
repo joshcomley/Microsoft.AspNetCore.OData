@@ -13,6 +13,8 @@ using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Extensions;
+using Microsoft.AspNetCore.OData.Extensions.Configuration;
+using Microsoft.AspNetCore.OData.Extensions.Validation;
 using Microsoft.AspNetCore.OData.Routing.Conventions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -106,6 +108,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 await OnBeforePostAsync(entity, patchEntity, value);
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
                 ModelState.Clear();
+                var customValidation = ValidationMap.ForType<T>();
                 if (!ValidateEntity(entity))
                 {
                     return this.ODataModelStateError();

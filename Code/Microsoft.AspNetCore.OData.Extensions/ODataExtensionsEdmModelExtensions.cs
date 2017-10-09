@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Xml;
 using Iql.DotNet.Serialization;
 using Microsoft.AspNetCore.OData.Extensions.Extensions;
+using Microsoft.AspNetCore.OData.Extensions.Validation;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
@@ -93,10 +94,11 @@ namespace Microsoft.AspNetCore.OData.Extensions
             string message)
         {
             var iql = IqlSerializer.SerializeToXml(validationExpression);
-            model.SetValidationAnnotation<TEntity>(
+            model.SetValidationAnnotation(
                 ValidationTerm,
                 new EdmStringConstant(iql),
-                message);
+                message,
+                validationExpression);
         }
 
         public static void SetEntityPropertyValidation<TEntity>(
@@ -110,6 +112,7 @@ namespace Microsoft.AspNetCore.OData.Extensions
                 ValidationTerm,
                 new EdmStringConstant(iql),
                 message,
+                validationExpression,
                 propertyExpression);
         }
 
@@ -185,21 +188,30 @@ namespace Microsoft.AspNetCore.OData.Extensions
             IEdmTerm term,
             IEdmExpression expression,
             string message,
+            Expression<Func<TEntity, bool>> validationExpression = null,
             Expression<Func<TEntity, object>> propertyExpression = null)
         {
             if (model == null) throw new ArgumentNullException(nameof(model));
 
+            // TODO: If validation expression is null, then compile it from the IQL
+
             var type = model.GetEdmType(typeof(TEntity)) as EdmEntityType;
             IEdmVocabularyAnnotatable target = type;
+            string propertyName = null;
             if (propertyExpression != null)
             {
-                var property = type.Properties().Single(p => p.Name == propertyExpression.GetAccessedProperty().Name);
+                propertyName = propertyExpression.GetAccessedProperty().Name;
+                var property = type.Properties().Single(p => p.Name == propertyName);
                 target = property;
             }
             var expressionLabel = new EdmLabeledExpression("Expression", expression);
             var messageLabel = new EdmLabeledExpression("Message", new EdmStringConstant(message));
             var coll = new EdmCollectionExpression(expressionLabel, messageLabel);
             var annotation = new EdmVocabularyAnnotation(target, term, coll);
+            var validation = ValidationMap.ForModel(model);
+            var validationObject = new EntityValidation<TEntity>(validationExpression, message);
+            validation.EntityValidation<TEntity>()
+                .AddValidation(validationObject, propertyName);
             annotation.SetSerializationLocation(model, target.ToSerializationLocation());
             model.AddVocabularyAnnotation(annotation);
         }
