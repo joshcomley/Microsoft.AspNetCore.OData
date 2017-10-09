@@ -88,7 +88,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region POST
         // POST api/[Entities]
         [HttpPost]
-        [ValidateModel]
+        //[ValidateModel]
         public virtual async Task<IActionResult> Post()
         {
             var jobject = ResolveJObject();
@@ -122,7 +122,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region PATCH
         // PATCH api/[Entities]/5
         [HttpPatch("{key}")]
-        [ValidateModel]
+        //[ValidateModel]
         public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
         {
             var entity = Crud.Secured.Find(keys);
@@ -366,7 +366,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region PUT
         // PUT api/[Entities]/5
         [HttpPut("{key}")]
-        [ValidateModel]
+        //[ValidateModel]
         public virtual async Task<IActionResult> Put([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
         {
             return await Patch(keys);
