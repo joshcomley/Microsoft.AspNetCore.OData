@@ -104,7 +104,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             if (ModelState.IsValid)
             {
                 var entity = Activator.CreateInstance<T>();
-                InitializeEntity(patchEntity);
+                InitializeEntity(patchEntity, new List<object>());
                 await OnBeforePostAndPatchAsync(entity, patchEntity, value);
                 await OnBeforePostAsync(entity, patchEntity, value);
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
@@ -567,16 +567,14 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Task.FromResult(true);
         }
 
-        protected virtual void InitializeEntity(object currentEntity, List<object> objects = null)
+        private void InitializeEntity(object currentEntity, List<object> objects)
         {
             objects = objects ?? new List<object>();
             if (!objects.Contains(currentEntity))
             {
                 objects.Add(currentEntity);
                 var entityType = currentEntity.GetType();
-                currentEntity.TryAs<ICreatedBy<TUser>>(e => { e.CreatedByUserId = GetCurrentUserId(); });
-                currentEntity.TryAs<ICreatedDate>(e => { e.CreatedDate = DateTime.UtcNow; });
-                currentEntity.TryAs<IHasGuid>(e => { e.Guid = Guid.NewGuid(); });
+                InitializeEntity(currentEntity);
                 foreach (var property in entityType.GetProperties())
                 {
                     var value = currentEntity.GetPropertyValue(property.Name);
@@ -597,6 +595,13 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     }
                 }
             }
+        }
+
+        protected virtual void InitializeEntity(object currentEntity)
+        {
+            currentEntity.TryAs<ICreatedBy<TUser>>(e => { e.CreatedByUserId = GetCurrentUserId(); });
+            currentEntity.TryAs<ICreatedDate>(e => { e.CreatedDate = DateTime.UtcNow; });
+            currentEntity.TryAs<IHasGuid>(e => { e.Guid = Guid.NewGuid(); });
         }
 
         protected virtual bool IsNewEntity(object value)
