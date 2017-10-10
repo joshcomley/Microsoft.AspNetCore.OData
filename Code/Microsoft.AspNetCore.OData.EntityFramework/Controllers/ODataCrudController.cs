@@ -21,7 +21,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData;
 using Newtonsoft.Json.Linq;
-using ObjectExtensions = Iql.Queryable.Data.ObjectExtensions;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 {
@@ -105,6 +104,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             if (ModelState.IsValid)
             {
                 var entity = Activator.CreateInstance<T>();
+                InitializeEntity(patchEntity);
                 await OnBeforePostAndPatchAsync(entity, patchEntity, value);
                 await OnBeforePostAsync(entity, patchEntity, value);
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
@@ -141,21 +141,27 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             }
         }
 
-        protected bool InvokeValidateEntity(object entity, string path)
+        protected bool InvokeValidateEntity(object entity, Dictionary<object, bool> validated, string path)
         {
             if (entity == null)
             {
                 throw new ArgumentNullException(nameof(entity));
             }
             return (bool) ValidateEntityMethod.MakeGenericMethod(entity.GetType())
-                .Invoke(this, new[] {entity, path});
+                .Invoke(this, new[] {entity, validated, path });
         }
 
-        public virtual bool ValidateEntity<TEntity>(TEntity entity, string path = "")
+        public virtual bool ValidateEntity<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "")
         {
+            validated = validated ?? new Dictionary<object, bool>();
+            if (validated.ContainsKey(entity))
+            {
+                return validated[entity];
+            }
             var iqlValidation = ValidationMap.ForType<TEntity>();
             var accessor = string.IsNullOrWhiteSpace(path) ? "" : ".";
             var isValid = TryValidateModel(entity);
+            validated.Add(entity, isValid);
             if (iqlValidation?.EntityValidations != null)
             {
                 foreach (var entityValidation in iqlValidation.EntityValidations)
@@ -210,14 +216,14 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             foreach (var element in (IEnumerable)value)
                             {
                                 var childPath = $"{path}{accessor}{property.Name}[{i}]";
-                                isValid = isValid && InvokeValidateEntity(element, childPath);
+                                isValid = isValid && InvokeValidateEntity(element, validated, childPath);
                                 i++;
                             }
                         }
                         else
                         {
                             var childPath = $"{path}{accessor}{property.Name}";
-                            isValid = isValid && InvokeValidateEntity(value, childPath);
+                            isValid = isValid && InvokeValidateEntity(value, validated, childPath);
                         }
                     }
                 }
@@ -343,7 +349,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     IList dbList = null;
                     if (invoke != null)
                     {
-                        dbList = (IList)ObjectExtensions.GetPropertyValue(invoke, propertyInfo.Name);
+                        dbList = (IList)invoke.GetPropertyValue(propertyInfo.Name);
                     }
                     var entityKey = Crud.Unsecured.Context.Model.FindEntityType(childEntityType).GetKeys()
                         .Single(k => k.IsPrimaryKey());
@@ -363,8 +369,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                 var match = true;
                                 foreach (var keyProperty in entityKey.Properties)
                                 {
-                                    var dbValue = ObjectExtensions.GetPropertyValue(dbChild, keyProperty.Name);
-                                    var submittedValue = ObjectExtensions.GetPropertyValue(submittedChild, keyProperty.Name);
+                                    var dbValue = dbChild.GetPropertyValue(keyProperty.Name);
+                                    var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
                                     if (!Equals(dbValue, submittedValue))
                                     {
                                         match = false;
@@ -390,7 +396,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                         {
                             foreach (var keyProperty in entityKey.Properties)
                             {
-                                var submittedValue = ObjectExtensions.GetPropertyValue(submittedChild, keyProperty.Name);
+                                var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
                                 if (submittedValue.IsDefaultValue())
                                 {
                                     dbList.Add(submittedChild);
@@ -409,7 +415,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             var isNew = false;
                             foreach (var keyProperty in entityKey.Properties)
                             {
-                                var propertyValue = ObjectExtensions.GetPropertyValue(child, keyProperty.Name);
+                                var propertyValue = child.GetPropertyValue(keyProperty.Name);
                                 if (propertyValue.IsDefaultValue())
                                 {
                                     isNew = true;
@@ -424,7 +430,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                     foreach (var keyProperty in entityKey.Properties)
                                     {
                                         var localValue = child.GetPropertyValue(keyProperty.Name);
-                                        var submittedValue = ObjectExtensions.GetPropertyValue(submittedList[i], keyProperty.Name);
+                                        var submittedValue = submittedList[i].GetPropertyValue(keyProperty.Name);
                                         if (!Equals(localValue, submittedValue))
                                         {
                                             match = false;
@@ -465,7 +471,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual TEntity GetAndInclude<TEntity>(TEntity entity, string property) where TEntity : class
         {
-            var keys = Crud.Secured.IdProperties.Select(p => new KeyValue(p.Name, ObjectExtensions.GetPropertyValue(entity, p.Name)))
+            var keys = Crud.Secured.IdProperties.Select(p => new KeyValue(p.Name, entity.GetPropertyValue(p.Name)))
                 .ToArray();
             var expression = CrudHelper.KeyEqualsExpression<TEntity>(keys);
             return Crud.Secured.Context.Set<TEntity>().Include(property).Where(
@@ -558,10 +564,64 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual Task OnBeforePostAsync(T currentEntity, T patchEntity, JObject jObject)
         {
-            currentEntity.TryAs<ICreatedBy<TUser>>(e => { e.CreatedByUserId = GetCurrentUserId(); });
-            currentEntity.TryAs<ICreatedDate>(e => { e.CreatedDate = DateTime.UtcNow; });
-            currentEntity.TryAs<IHasGuid>(e => { e.Guid = Guid.NewGuid(); });
             return Task.FromResult(true);
+        }
+
+        protected virtual void InitializeEntity(object currentEntity, List<object> objects = null)
+        {
+            objects = objects ?? new List<object>();
+            if (!objects.Contains(currentEntity))
+            {
+                objects.Add(currentEntity);
+                var entityType = currentEntity.GetType();
+                currentEntity.TryAs<ICreatedBy<TUser>>(e => { e.CreatedByUserId = GetCurrentUserId(); });
+                currentEntity.TryAs<ICreatedDate>(e => { e.CreatedDate = DateTime.UtcNow; });
+                currentEntity.TryAs<IHasGuid>(e => { e.Guid = Guid.NewGuid(); });
+                foreach (var property in entityType.GetProperties())
+                {
+                    var value = currentEntity.GetPropertyValue(property.Name);
+                    if (value is IEnumerable && !(value is string))
+                    {
+                        var enumerable = value as IEnumerable;
+                        foreach (var item in enumerable)
+                        {
+                            if (IsNewEntity(item))
+                            {
+                                InitializeEntity(item, objects);
+                            }
+                        }
+                    }
+                    if (IsNewEntity(value))
+                    {
+                        InitializeEntity(value, objects);
+                    }
+                }
+            }
+        }
+
+        protected virtual bool IsNewEntity(object value)
+        {
+            if (value != null)
+            {
+                var type = value.GetType();
+                if (type.IsClass && !(value is string))
+                {
+                    var childEntityConfiguration = Crud.Unsecured.Context.Model.FindEntityType(type);
+                    if (childEntityConfiguration != null)
+                    {
+                        var entityKey = childEntityConfiguration.GetKeys()
+                            .Single(k => k.IsPrimaryKey());
+                        foreach (var key in entityKey.Properties)
+                        {
+                            if (value.GetPropertyValue(key.Name).IsDefaultValue())
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         public virtual Task OnAfterPostAsync(T currentEntity, T patchEntity, JObject jObject)
