@@ -160,7 +160,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             }
             var iqlValidation = ValidationMap.ForType<TEntity>();
             var accessor = string.IsNullOrWhiteSpace(path) ? "" : ".";
-            var isValid = TryValidateModel(entity);
+            var isValid = !string.IsNullOrWhiteSpace(path) || TryValidateModel(entity);
             validated.Add(entity, isValid);
             if (iqlValidation?.EntityValidations != null)
             {
@@ -216,14 +216,14 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             foreach (var element in (IEnumerable)value)
                             {
                                 var childPath = $"{path}{accessor}{property.Name}[{i}]";
-                                isValid = isValid && InvokeValidateEntity(element, validated, childPath);
+                                isValid = InvokeValidateEntity(element, validated, childPath) && isValid;
                                 i++;
                             }
                         }
                         else
                         {
                             var childPath = $"{path}{accessor}{property.Name}";
-                            isValid = isValid && InvokeValidateEntity(value, validated, childPath);
+                            isValid = InvokeValidateEntity(value, validated, childPath) && isValid;
                         }
                     }
                 }
@@ -526,7 +526,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region Intercepts
         public virtual Task OnBeforePostAndPatchAsync(T currentEntity, T patchEntity, JObject jObject)
         {
-            ClearClassProperties(patchEntity);
+            //ClearClassProperties(patchEntity);
             return Task.FromResult(true);
         }
 
