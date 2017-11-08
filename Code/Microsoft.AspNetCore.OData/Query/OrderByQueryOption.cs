@@ -229,6 +229,7 @@ namespace Microsoft.AspNetCore.OData.Query
             {
                 OrderByPropertyNode propertyNode = node as OrderByPropertyNode;
                 OrderByOpenPropertyNode openPropertyNode = node as OrderByOpenPropertyNode;
+                OrderByCountNode countNode = node as OrderByCountNode;
 
                 if (propertyNode != null)
                 {
@@ -268,6 +269,11 @@ namespace Microsoft.AspNetCore.OData.Query
                     querySoFar = AddOrderByQueryForProperty(query, querySettings, openPropertyNode.OrderByClause, querySoFar, openPropertyNode.Direction, alreadyOrdered);
                     alreadyOrdered = true;
                 }
+                else if (countNode != null)
+                {
+                    querySoFar = AddOrderByQueryForProperty(query, querySettings, countNode.OrderByClause, querySoFar, countNode.Direction, alreadyOrdered);
+                    alreadyOrdered = true;
+                }
                 else
                 {
                     // This check prevents queries with duplicate nodes (e.g. $orderby=$it,$it,$it,$it...) from causing stack overflows
@@ -305,10 +311,17 @@ namespace Microsoft.AspNetCore.OData.Query
                 return null;
             }
 
-            SingleValueNode orderByExpression = orderBy.Expression.Accept(
-                new ParameterAliasNodeTranslator(_queryOptionParser.ParameterAliasNodes)) as SingleValueNode;
-            orderByExpression = orderByExpression ?? new ConstantNode(null, "null");
-
+            SingleValueNode orderByExpression = null;
+            try
+            {
+                orderByExpression = orderBy.Expression.Accept(
+                    new ParameterAliasNodeTranslator(_queryOptionParser.ParameterAliasNodes)) as SingleValueNode;
+            }
+            catch
+            {
+                
+            }
+            orderByExpression = orderByExpression ?? orderBy.Expression ?? new ConstantNode(null, "null");
             return new OrderByClause(
                 TranslateParameterAlias(orderBy.ThenBy),
                 orderByExpression,

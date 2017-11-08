@@ -67,7 +67,11 @@ namespace Microsoft.AspNetCore.OData.Query
                     continue;
                 }
 
-                if (clause.Expression is SingleValueOpenPropertyAccessNode)
+                if (clause.Expression is CountNode)
+                {
+                    result.Add(new OrderByCountNode(clause));
+                }
+                else if (clause.Expression is SingleValueOpenPropertyAccessNode)
                 {
                     result.Add(new OrderByOpenPropertyNode(clause));
                 }
