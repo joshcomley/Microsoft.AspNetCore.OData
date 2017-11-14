@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -68,11 +69,24 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                     httpMethodName);
                 // TODO: Cache these results
                 var keyNames = entityType.Key().Select(k => k.Type.AsTypeDefinition().ShortQualifiedName()).ToArray();
+
                 var actionDescriptor = actions.FirstOrDefault(action =>
                 {
                     if (action.Parameters.Count == keyNames.Length &&
                         action.Parameters.All(
-                            p => keyNames.Contains(p.ParameterType.EdmName()) || p.ParameterType == typeof(KeyValuePair<string, object>)))
+                            p =>
+                            {
+                                if (keyNames.Contains(p.ParameterType.EdmName()))
+                                {
+                                    return true;
+                                }
+                                var type = typeof(KeyValuePair<string, object>[]);
+                                if (p.ParameterType == type)
+                                {
+                                    return true;
+                                }
+                                return false;
+                            }))
                     {
                         return true;
                     }
