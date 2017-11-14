@@ -74,7 +74,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual Task<IActionResult> Get([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             IActionResult result;
-            var entityQuery = Crud.Secured.FindQuery(keys);
+            var entityQuery = Crud.Secured.FindQuery(keys.Cast<object>().ToArray());
             if (entityQuery == null || entityQuery.Count() != 1)
             {
                 result = NotFound();
