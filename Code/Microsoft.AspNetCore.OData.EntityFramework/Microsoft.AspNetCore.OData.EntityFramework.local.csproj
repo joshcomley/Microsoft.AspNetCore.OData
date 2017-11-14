@@ -6,6 +6,10 @@
     <RootNamespace>Microsoft.AspNetCore.OData.EntityFramework.local</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\local\Debug\netcoreapp2.0\</OutputPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Brandless" Version="0.0.1" />
     <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40003" />

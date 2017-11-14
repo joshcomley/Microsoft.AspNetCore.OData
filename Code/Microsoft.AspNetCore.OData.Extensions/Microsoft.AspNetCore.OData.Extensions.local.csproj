@@ -6,6 +6,10 @@
     <RootNamespace>Microsoft.AspNetCore.OData.Extensions.local</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\local\Debug\netcoreapp2.0\</OutputPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Vocabularies\CapabilitiesVocabularies.xml" />
     <EmbeddedResource Include="Vocabularies\CoreVocabularies.xml" />
@@ -20,7 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\odata.net.core\Code\Microsoft.OData.Core\Microsoft.OData.Core.csproj" />
     <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.local.csproj" />
   </ItemGroup>
 
