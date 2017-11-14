@@ -85,11 +85,12 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
             memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Name"), property.Name));
 
-            if (property.PageSize != null || property.CountOption != null)
+            var collectionProperty = namedPropertyType.GetProperty("Collection");
+            if ((property.PageSize != null || property.CountOption != null) && collectionProperty != null)
             {
                 if (!property.OnlyCount.HasValue || property.OnlyCount == false)
                 {
-                    memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Collection"), property.Value));
+                    memberBindings.Add(Expression.Bind(collectionProperty, property.Value));
                 }
 
                 if (property.PageSize != null)
@@ -105,7 +106,11 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
                 if (property.OnlyCount.HasValue)
                 {
-                    memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("OnlyCount"), Expression.Constant(property.OnlyCount)));
+                    var onlyCountProperty = namedPropertyType.GetProperty("OnlyCount");
+                    if (onlyCountProperty != null)
+                    {
+                        memberBindings.Add(Expression.Bind(onlyCountProperty, Expression.Constant(property.OnlyCount)));
+                    }
                 }
             }
             else
