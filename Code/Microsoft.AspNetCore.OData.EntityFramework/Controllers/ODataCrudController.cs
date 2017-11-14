@@ -71,7 +71,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         }
 
         [HttpGet]
-        public virtual Task<IActionResult> Get([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
+        public virtual Task<IActionResult> Get([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             IActionResult result;
             var entityQuery = Crud.Secured.FindQuery(keys);
@@ -236,7 +236,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         // PATCH api/[Entities]/5
         [HttpPatch("{key}")]
         [LoadModel]
-        public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
+        public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             var entity = Crud.Secured.Find(keys);
             var currentEntity = await FindAsync(entity);
@@ -255,13 +255,13 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Task.FromResult(entity);
         }
 
-        protected virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentDatabaseEntity)
+        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] key, JObject value, T currentDatabaseEntity)
         {
             await OnValidate(PostedEntity, value);
             return await Patch(key, value, currentDatabaseEntity, PostedEntity);
         }
 
-        public virtual async Task<IActionResult> Patch(KeyValue[] key, JObject value, T currentDatabaseEntity, T patchEntity)
+        public virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] key, JObject value, T currentDatabaseEntity, T patchEntity)
         {
             await OnBeforePostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
             await OnBeforePatchAsync(key, currentDatabaseEntity, patchEntity, value);
@@ -471,7 +471,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual TEntity GetAndInclude<TEntity>(TEntity entity, string property) where TEntity : class
         {
-            var keys = Crud.Secured.IdProperties.Select(p => new KeyValue(p.Name, entity.GetPropertyValue(p.Name)))
+            var keys = Crud.Secured.IdProperties.Select(p => new KeyValuePair<string, object>(p.Name, entity.GetPropertyValue(p.Name)))
                 .ToArray();
             var expression = CrudHelper.KeyEqualsExpression<TEntity>(keys);
             return Crud.Secured.Context.Set<TEntity>().Include(property).Where(
@@ -484,7 +484,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         // PUT api/[Entities]/5
         [HttpPut("{key}")]
         [LoadModel]
-        public virtual async Task<IActionResult> Put([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
+        public virtual async Task<IActionResult> Put([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             return await Patch(keys);
         }
@@ -493,7 +493,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region DELETE
         // DELETE api/Products/5
         [HttpDelete("{key}")]
-        public virtual async Task<IActionResult> Delete([ModelBinder(typeof(KeyValueBinder))]KeyValue[] keys)
+        public virtual async Task<IActionResult> Delete([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             //var entity = Crud.Secured.Find(id);
             //var securityFilterResult = await ApplySecurityFiltersAsync(
@@ -515,7 +515,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Ok();
         }
 
-        protected virtual async Task<DeleteActionResult> DeleteEntity(params KeyValue[] key)
+        protected virtual async Task<DeleteActionResult> DeleteEntity(params KeyValuePair<string, object>[] key)
         {
             var result = await Crud.Secured.DeleteAndSaveAsync(key);
             return result;
@@ -634,12 +634,12 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Task.FromResult(true);
         }
 
-        public virtual Task OnBeforePatchAsync(KeyValue[] id, T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnBeforePatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
         {
             return Task.FromResult(true);
         }
 
-        public virtual Task OnAfterPatchAsync(KeyValue[] id, T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnAfterPatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
         {
             return Task.FromResult(true);
         }

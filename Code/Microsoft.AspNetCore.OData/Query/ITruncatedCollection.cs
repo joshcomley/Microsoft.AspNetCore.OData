@@ -10,6 +10,8 @@ namespace Microsoft.AspNetCore.OData.Query
     /// </summary>
     public interface ITruncatedCollection : IEnumerable
     {
+        bool OnlyCount { get; }
+
         /// <summary>
         /// Gets the page size the collection is truncated to.
         /// </summary>

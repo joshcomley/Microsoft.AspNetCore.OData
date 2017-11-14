@@ -228,13 +228,13 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
             }
 
             // for without FromODataUri
-            var keyValues = routeValues["keys"] as List<KeyValue>;
+            var keyValues = routeValues["keys"] as List<KeyValuePair<string, object>>;
             if (keyValues == null)
             {
-                keyValues = new List<KeyValue>();
+                keyValues = new List<KeyValuePair<string, object>>();
                 routeValues["keys"] = keyValues;
             }
-            keyValues.Add(new KeyValue(key, value));
+            keyValues.Add(new KeyValuePair<string, object>(key, value));
             routeValues[name] = routeValue;
 
             // For FromODataUri

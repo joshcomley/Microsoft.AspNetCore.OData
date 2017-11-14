@@ -39,5 +39,6 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         public bool AutoSelected { get; set; }
 
         public bool? CountOption { get; set; }
+        public bool? OnlyCount { get; set; }
     }
 }

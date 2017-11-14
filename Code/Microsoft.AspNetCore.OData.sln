@@ -1,7 +1,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26906.1
-MinimumVisualStudioVersion = 15.0.26124.0
+VisualStudioVersion = 15.0.27004.2006
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.OData", "Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.csproj", "{B22176BC-E09E-4FAF-BA06-B41A6BFE0E7F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.OData.EntityFramework", "Microsoft.AspNetCore.OData.EntityFramework\Microsoft.AspNetCore.OData.EntityFramework.csproj", "{1DDFD9F4-3072-46D1-9354-8F421473EA7A}"
@@ -59,6 +59,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {BBB4331A-E105-4771-9103-2BBC4E3A2C3B}
+		SolutionGuid = {083259B6-5F39-4A87-BAD8-932C7BB2C09C}
 	EndGlobalSection
 EndGlobal

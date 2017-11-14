@@ -72,7 +72,7 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                 {
                     if (action.Parameters.Count == keyNames.Length &&
                         action.Parameters.All(
-                            p => keyNames.Contains(p.ParameterType.EdmName()) || p.ParameterType == typeof(KeyValue)))
+                            p => keyNames.Contains(p.ParameterType.EdmName()) || p.ParameterType == typeof(KeyValuePair<string, object>)))
                     {
                         return true;
                     }

@@ -38,7 +38,9 @@ namespace Microsoft.AspNetCore.OData.Extensions
         static ODataExtensionsEdmModelExtensions()
         {
             IEnumerable<EdmError> errors;
-            using (var stream = typeof(ODataExtensionsEdmModelExtensions).GetTypeInfo().Assembly.GetManifestResourceStream("Microsoft.AspNetCore.OData.Extensions.Vocabularies.MeasuresVocabularies.xml"))
+            var assembly = typeof(ODataExtensionsEdmModelExtensions).GetTypeInfo().Assembly;
+            using (var stream = assembly.GetManifestResourceStream(
+                $"{assembly.GetName().Name}.Vocabularies.MeasuresVocabularies.xml"))
             {
                 CsdlReader.TryParse(XmlReader.Create(stream), out Instance, out errors);
             }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <AssemblyName>Microsoft.AspNetCore.OData.EntityFramework.local</AssemblyName>
+    <RootNamespace>Microsoft.AspNetCore.OData.EntityFramework.local</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Brandless" Version="0.0.1" />
+    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40003" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\odata.net.core\Code\Microsoft.OData.Core\Microsoft.OData.Core.csproj" />
+    <ProjectReference Include="..\..\..\odata.net.core\Code\Microsoft.OData.Edm\Microsoft.OData.Edm.csproj" />
+    <ProjectReference Include="..\Microsoft.AspNetCore.OData.Extensions\Microsoft.AspNetCore.OData.Extensions.local.csproj" />
+    <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.local.csproj" />
+  </ItemGroup>
+
+</Project>

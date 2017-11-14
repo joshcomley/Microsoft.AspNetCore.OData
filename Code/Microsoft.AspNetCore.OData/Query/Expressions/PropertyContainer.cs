@@ -87,7 +87,10 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
             if (property.PageSize != null || property.CountOption != null)
             {
-                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Collection"), property.Value));
+                if (!property.OnlyCount.HasValue || property.OnlyCount == false)
+                {
+                    memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Collection"), property.Value));
+                }
 
                 if (property.PageSize != null)
                 {
@@ -97,7 +100,12 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
                 if (property.CountOption != null && property.CountOption.Value)
                 {
-                     memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("TotalCount"), property.TotalCount));
+                    memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("TotalCount"), property.TotalCount));
+                }
+
+                if (property.OnlyCount.HasValue)
+                {
+                    memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("OnlyCount"), Expression.Constant(property.OnlyCount)));
                 }
             }
             else
@@ -114,7 +122,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("IsNull"), property.NullCheck));
             }
 
-            return Expression.MemberInit(Expression.New(namedPropertyType), memberBindings);
+            var newExpression = Expression.New(namedPropertyType);
+            var namedPropertyCreationExpression = Expression.MemberInit(newExpression, memberBindings);
+            return namedPropertyCreationExpression;
         }
 
         private static Type GetNamedPropertyType(NamedPropertyExpression property, Expression next)
@@ -215,11 +225,23 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             }
         }
 
-        private class CollectionExpandedProperty<T> : NamedProperty<T>
+        public class CollectionExpandedProperty<T> : NamedProperty<T>
         {
+            private bool _onlyCount;
+
+            public CollectionExpandedProperty()
+            {
+
+            }
             public int PageSize { get; set; }
 
             public long? TotalCount { get; set; }
+
+            public bool OnlyCount
+            {
+                get { return _onlyCount; }
+                set { _onlyCount = value; }
+            }
 
             public IEnumerable<T> Collection { get; set; }
 
@@ -231,7 +253,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 }
                 else
                 {
-                    return new TruncatedCollection<T>(Collection, PageSize, TotalCount);
+                    return new TruncatedCollection<T>(Collection, PageSize, TotalCount, OnlyCount);
                 }
             }
         }

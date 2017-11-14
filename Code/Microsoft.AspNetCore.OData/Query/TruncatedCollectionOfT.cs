@@ -27,7 +27,7 @@ namespace Microsoft.AspNetCore.OData.Query
         /// <param name="source">The collection to be truncated.</param>
         /// <param name="pageSize">The page size.</param>
         public TruncatedCollection(IEnumerable<T> source, int pageSize)
-            : base(source.Take(checked(pageSize + 1)))
+            : base(PrepareBase(source?.AsQueryable(), pageSize))
         {
             Initialize(pageSize);
         }
@@ -40,9 +40,14 @@ namespace Microsoft.AspNetCore.OData.Query
         // NOTE: The queryable version calls Queryable.Take which actually gets translated to the backend query where as 
         // the enumerable version just enumerates and is inefficient.
         public TruncatedCollection(IQueryable<T> source, int pageSize)
-            : base(source.Take(checked(pageSize + 1)))
+            : base(PrepareBase(source, pageSize))
         {
             Initialize(pageSize);
+        }
+
+        private static IQueryable<T> PrepareBase(IQueryable<T> source, int pageSize)
+        {
+            return pageSize > 0 ? source?.Take(checked(pageSize + 1)) : source ?? new T[] { }.AsQueryable();
         }
 
         /// <summary>
@@ -51,9 +56,10 @@ namespace Microsoft.AspNetCore.OData.Query
         /// <param name="source">The queryable collection to be truncated.</param>
         /// <param name="pageSize">The page size.</param>
         /// <param name="totalCount">The total count.</param>
-        public TruncatedCollection(IEnumerable<T> source, int pageSize, long? totalCount)
-            : base(pageSize > 0 ? source.Take(checked(pageSize + 1)) : source)
+        public TruncatedCollection(IEnumerable<T> source, int pageSize, long? totalCount, bool onlyCount)
+            : base(PrepareBase(source?.AsQueryable(), pageSize))
         {
+            OnlyCount = onlyCount;
             if (pageSize > 0)
             {
                 Initialize(pageSize);
@@ -70,9 +76,10 @@ namespace Microsoft.AspNetCore.OData.Query
         /// <param name="totalCount">The total count.</param>
         // NOTE: The queryable version calls Queryable.Take which actually gets translated to the backend query where as 
         // the enumerable version just enumerates and is inefficient.
-        public TruncatedCollection(IQueryable<T> source, int pageSize, long? totalCount)
-            : base(pageSize > 0 ? source.Take(checked(pageSize + 1)) : source)
+        public TruncatedCollection(IQueryable<T> source, int pageSize, long? totalCount, bool onlyCount)
+            : base(PrepareBase(source, pageSize))
         {
+            OnlyCount = onlyCount;
             if (pageSize > 0)
             {
                 Initialize(pageSize);
@@ -83,6 +90,10 @@ namespace Microsoft.AspNetCore.OData.Query
 
         private void Initialize(int pageSize)
         {
+            if (pageSize == 0)
+            {
+                return;
+            }
             if (pageSize < MinPageSize)
             {
                 throw Error.ArgumentMustBeGreaterThanOrEqualTo("pageSize", pageSize, MinPageSize);
@@ -108,6 +119,8 @@ namespace Microsoft.AspNetCore.OData.Query
         {
             get { return _isTruncated; }
         }
+
+        public bool OnlyCount { get; }
 
         /// <inheritdoc />
         public long? TotalCount

@@ -87,7 +87,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             LambdaExpression projectionLambda = GetProjectionLambda();
 
             MethodInfo selectMethod = ExpressionHelperMethods.QueryableSelectGeneric.MakeGenericMethod(elementType, projectionLambda.Body.Type);
-            return selectMethod.Invoke(null, new object[] { queryable, projectionLambda }) as IQueryable;
+            var result = selectMethod.Invoke(null, new object[] { queryable, projectionLambda }) as IQueryable;
+            return result;
         }
 
         private LambdaExpression GetProjectionLambda()
@@ -193,7 +194,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             Type nullablePropertyType = propertyValue.Type.ToNullable();
             Expression nullablePropertyValue = ExpressionHelpers.ToNullable(propertyValue);
 
-            Type clrElementType = EdmLibHelpers.GetClrType(elementType, _model);
+            var edmElementType = propertyValue.Type.IsCollection() ? property.Type.AsCollection().ElementType() : property.Type;// 
+            Type clrElementType = EdmLibHelpers.GetClrType(edmElementType, _model);
             Expression filterSource = null;
             var interceptorContainer = new InterceptorContainer(clrElementType, _serviceProvider);
             if ((filterClause != null || interceptorContainer.Any) && property.Type.IsCollection())
@@ -204,16 +206,15 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                         edmElementType.FullName())*/);
                 }
 
-                filterSource =
-                    typeof(IEnumerable).IsAssignableFrom(source.Type.GetProperty(propertyName).PropertyType)
-                        ? Expression.Call(
-                            ExpressionHelperMethods.QueryableAsQueryable.MakeGenericMethod(clrElementType),
-                            nullablePropertyValue)
-                        : nullablePropertyValue;
-
+                filterSource = nullablePropertyValue;
+                //typeof(IEnumerable).IsAssignableFrom(source.Type.GetProperty(propertyName).PropertyType)
+                //    ? Expression.Call(
+                //        ExpressionHelperMethods.QueryableAsQueryable.MakeGenericMethod(clrElementType),
+                //        nullablePropertyValue)
+                //    : nullablePropertyValue;
                 Expression filterPredicate = FilterBinder.Bind(filterClause, clrElementType, _serviceProvider);
                 MethodCallExpression filterResult = Expression.Call(
-                    ExpressionHelperMethods.QueryableWhereGeneric.MakeGenericMethod(clrElementType),
+                    ExpressionHelperMethods.EnumerableWhereGeneric.MakeGenericMethod(clrElementType),
                     filterSource,
                     filterPredicate);
 
@@ -365,7 +366,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             // source => new Wrapper { Container =  new PropertyContainer { .... } }
             if (selectExpandClause != null)
             {
-                Dictionary<IEdmNavigationProperty, ExpandedNavigationSelectItem> propertiesToExpand = GetPropertiesToExpandInQuery(selectExpandClause);
+                Dictionary<IEdmNavigationProperty, ExpandedReferenceSelectItem> propertiesToExpand = GetPropertiesToExpandInQuery(selectExpandClause);
                 ISet<IEdmStructuralProperty> autoSelectedProperties;
 
                 ISet<IEdmStructuralProperty> propertiesToInclude = GetPropertiesToIncludeInQuery(selectExpandClause, entityType, entitySet, _model, out autoSelectedProperties);
@@ -404,18 +405,18 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             return selectExpandClause.SelectedItems.OfType<PathSelectItem>().Any(x => x.SelectedPath.LastSegment is DynamicPathSegment);
         }
 
-        private Expression CreateTotalCountExpression(Expression source, ExpandedNavigationSelectItem expandItem)
+        private Expression CreateTotalCountExpression(Expression source, ExpandedReferenceSelectItem expandItem)
         {
-            Expression countExpression = Expression.Constant(null, typeof(long?));
-            if (expandItem.CountOption == null || !expandItem.CountOption.Value)
+            if ((expandItem.CountOption == null && !(expandItem is ExpandedCountSelectItem)) ||
+                (expandItem.CountOption != null && !expandItem.CountOption.Value))
             {
-                return countExpression;
+                return null;
             }
 
             Type elementType;
             if (!source.Type.IsCollection(out elementType))
             {
-                return countExpression;
+                return null;
             }
 
             MethodInfo countMethod;
@@ -429,34 +430,35 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             }
 
             // call Count() method.
-            countExpression = Expression.Call(null, countMethod, new[] { source });
+            var countExpression = Expression.Call(null, countMethod, new[] { source });
 
             if (_settings.HandleNullPropagation == HandleNullPropagationOption.True)
             {
                 // source == null ? null : countExpression
                 return Expression.Condition(
-                       test: Expression.Equal(source, Expression.Constant(null)),
-                       ifTrue: Expression.Constant(null, typeof(long?)),
-                       ifFalse: ExpressionHelpers.ToNullable(countExpression));
+                    test: Expression.Equal(source, Expression.Constant(null)),
+                    ifTrue: Expression.Constant(null, typeof(long?)),
+                    ifFalse: ExpressionHelpers.ToNullable(countExpression));
             }
-            else
-            {
-                return countExpression;
-            }
+            return ExpressionHelpers.ToNullable(countExpression);
         }
 
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "Class coupling acceptable")]
         private Expression BuildPropertyContainer(IEdmEntityType elementType, Expression source,
-            Dictionary<IEdmNavigationProperty, ExpandedNavigationSelectItem> propertiesToExpand,
+            Dictionary<IEdmNavigationProperty, ExpandedReferenceSelectItem> propertiesToExpand,
             ISet<IEdmStructuralProperty> propertiesToInclude, ISet<IEdmStructuralProperty> autoSelectedProperties, bool isSelectingOpenTypeSegments)
         {
             IList<NamedPropertyExpression> includedProperties = new List<NamedPropertyExpression>();
 
-            foreach (KeyValuePair<IEdmNavigationProperty, ExpandedNavigationSelectItem> kvp in propertiesToExpand)
+            foreach (KeyValuePair<IEdmNavigationProperty, ExpandedReferenceSelectItem> kvp in propertiesToExpand)
             {
                 IEdmNavigationProperty propertyToExpand = kvp.Key;
-                ExpandedNavigationSelectItem expandItem = kvp.Value;
-                SelectExpandClause projection = expandItem.SelectAndExpand;
+                ExpandedReferenceSelectItem expandItem = kvp.Value;
+                SelectExpandClause projection = null;
+                if (kvp.Value is ExpandedNavigationSelectItem)
+                {
+                    projection = (kvp.Value as ExpandedNavigationSelectItem).SelectAndExpand;
+                }
 
                 Expression propertyName = CreatePropertyNameExpression(elementType, propertyToExpand, source);
                 Expression propertyValue = CreatePropertyValueExpressionWithFilter(elementType, propertyToExpand, source,
@@ -469,7 +471,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 if (projection != null)
                 {
                     propertyValue = ProjectAsWrapper(propertyValue, projection, propertyToExpand.ToEntityType(), expandItem.NavigationSource as IEdmEntitySet,
-                        expandItem);
+                        expandItem as ExpandedNavigationSelectItem);
                 }
 
                 NamedPropertyExpression propertyExpression = new NamedPropertyExpression(propertyName, propertyValue);
@@ -483,9 +485,10 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                     {
                         propertyExpression.PageSize = _settings.PageSize.Value;
                     }
-                    propertyExpression.TotalCount = countExpression;
-                    propertyExpression.CountOption = expandItem.CountOption;
                 }
+                propertyExpression.OnlyCount = expandItem is ExpandedCountSelectItem;
+                propertyExpression.CountOption = countExpression != null;
+                propertyExpression.TotalCount = countExpression;
 
                 includedProperties.Add(propertyExpression);
             }
@@ -662,9 +665,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             {
                 // source == null ? null : projectedCollection
                 return Expression.Condition(
-                       test: Expression.Equal(source, Expression.Constant(null)),
-                       ifTrue: Expression.Constant(null, selectedExpresion.Type),
-                       ifFalse: selectedExpresion);
+                    test: Expression.Equal(source, Expression.Constant(null)),
+                    ifTrue: Expression.Constant(null, selectedExpresion.Type),
+                    ifFalse: selectedExpresion);
             }
             else
             {
@@ -763,9 +766,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                     }
 
                     expression = Expression.Condition(
-                                    test: Expression.TypeIs(source, clrType),
-                                    ifTrue: Expression.Constant(derivedTypes[i].FullName()),
-                                    ifFalse: expression);
+                        test: Expression.TypeIs(source, clrType),
+                        ifTrue: Expression.Constant(derivedTypes[i].FullName()),
+                        ifFalse: expression);
                 }
 
                 return expression;
@@ -815,9 +818,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             return ExpressionHelperMethods.EnumerableSelectGeneric.MakeGenericMethod(elementType, resultType);
         }
 
-        private static Dictionary<IEdmNavigationProperty, ExpandedNavigationSelectItem> GetPropertiesToExpandInQuery(SelectExpandClause selectExpandClause)
+        private static Dictionary<IEdmNavigationProperty, ExpandedReferenceSelectItem> GetPropertiesToExpandInQuery(SelectExpandClause selectExpandClause)
         {
-            Dictionary<IEdmNavigationProperty, ExpandedNavigationSelectItem> properties = new Dictionary<IEdmNavigationProperty, ExpandedNavigationSelectItem>();
+            Dictionary<IEdmNavigationProperty, ExpandedReferenceSelectItem> properties = new Dictionary<IEdmNavigationProperty, ExpandedReferenceSelectItem>();
 
             foreach (SelectItem selectItem in selectExpandClause.SelectedItems)
             {
@@ -832,6 +835,12 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                     }
 
                     properties[navigationSegment.NavigationProperty] = expandItem;
+                }
+                else if (selectItem is ExpandedCountSelectItem)
+                {
+                    var countItem = selectItem as ExpandedCountSelectItem;
+                    NavigationPropertySegment navigationSegment = countItem.PathToNavigationProperty.LastSegment as NavigationPropertySegment;
+                    properties[navigationSegment.NavigationProperty] = countItem;
                 }
             }
 
@@ -982,12 +991,12 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         // Produces an expression identical to 'expression'
         // except with 'source' parameter replaced with 'target' expression.     
         public static Expression<TOutput> Replace<TInput, TOutput>
-                        (Expression<TInput> expression,
-                        ParameterExpression source,
-                        Expression target)
+        (Expression<TInput> expression,
+            ParameterExpression source,
+            Expression target)
         {
             return new ParameterReplacerVisitor<TOutput>(source, target)
-                        .VisitAndConvert(expression);
+                .VisitAndConvert(expression);
         }
 
         private class ParameterReplacerVisitor<TOutput> : ExpressionVisitor
@@ -996,7 +1005,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             private Expression _target;
 
             public ParameterReplacerVisitor
-                    (ParameterExpression source, Expression target)
+                (ParameterExpression source, Expression target)
             {
                 _source = source;
                 _target = target;
@@ -1011,7 +1020,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             {
                 // Leave all parameters alone except the one we want to replace.
                 var parameters = node.Parameters
-                                     .Where(p => p != _source);
+                    .Where(p => p != _source);
 
                 return Expression.Lambda<TOutput>(Visit(node.Body), parameters);
             }
