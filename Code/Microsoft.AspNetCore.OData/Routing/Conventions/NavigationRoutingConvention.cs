@@ -76,10 +76,12 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                 if (declaringType != null)
                 {
                     // e.g. Try GetNavigationPropertyFromDeclaringType first, then fallback on GetNavigationProperty action name
+                    const string getNavigationPropertyActionName = "GetNavigationProperty";
                     ControllerActionDescriptor actionDescriptor = actionDescriptors.FindMatchingAction(
                         actionNamePrefix + navigationProperty.Name + "From" + declaringType.Name,
                         actionNamePrefix + navigationProperty.Name,
-                        navigationProperty.Name);
+                        navigationProperty.Name,
+                        getNavigationPropertyActionName);
 
                     if (actionDescriptor != null)
                     {
@@ -87,6 +89,10 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                         {
                             KeySegment keyValueSegment = (KeySegment)odataPath.Segments[1];
                             routeContext.AddKeyValueToRouteData(keyValueSegment, actionDescriptor);
+                            if (actionDescriptor.ActionName == getNavigationPropertyActionName)
+                            {
+                                routeContext.RouteData.Values.Add("navigationProperty", navigationProperty.Name);
+                            }
                         }
 
                         return actionDescriptor;

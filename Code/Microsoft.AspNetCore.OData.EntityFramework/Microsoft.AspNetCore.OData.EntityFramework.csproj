@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
+    <AssemblyName>Brandless.AspNetCore.OData.EntityFramework</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

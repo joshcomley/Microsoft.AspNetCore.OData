@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Brandless.Data;
@@ -20,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData;
+using Microsoft.OData.Edm;
 using Newtonsoft.Json.Linq;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
@@ -54,7 +56,6 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual IRevisionKeyGenerator RevisionKeyGenerator => Data.RevisionKeyGenerator;
         public virtual IServiceProvider Services => HttpContext.RequestServices;
 
-
         #region Security
         public T FindEntityById(params object[] id)
         {
@@ -84,6 +85,108 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 result = Ok(new SingleResult<T>(entityQuery));
             }
             return Task.FromResult(result);
+        }
+
+        [HttpGet]
+        public virtual Task<IActionResult> GetNavigationProperty([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys,
+            string navigationProperty)
+        {
+            var propertyType = typeof(T).GetProperty(navigationProperty).PropertyType;
+            if (typeof(IEnumerable).IsAssignableFrom(propertyType) && !typeof(string).IsAssignableFrom(propertyType))
+            {
+                propertyType = propertyType.GetGenericArguments()[0];
+            }
+            var typedResult = (GetNavigationPropertyTypedResult)GetType().GetMethod(nameof(GetNavigationPropertyTyped))
+                .MakeGenericMethod(propertyType)
+                .Invoke(this, new object[] { keys, navigationProperty });
+            IActionResult result;
+            if (typedResult.IsSingleResult && typedResult.SingleResult == null)
+            {
+                result = NotFound();
+            }
+            else
+            {
+                result = typedResult.IsSingleResult 
+                    ? Ok(typedResult.SingleResult) 
+                    : Ok(typedResult.Queryable);
+            }
+            return Task.FromResult(result);
+        }
+
+        public virtual GetNavigationPropertyTypedResult GetNavigationPropertyTyped<TEntity>([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys,
+            string navigationProperty) where TEntity : class
+        {
+            var edmType = ModelAccessor.EdmModel.GetEdmType(typeof(T)) as EdmEntityType;
+            var navProperty = edmType.NavigationProperties().Single(p => p.Name == navigationProperty);
+            Expression<Func<TEntity, bool>> exp;
+            var isSingleResult = false;
+            if (navProperty.Partner.ReferentialConstraint != null)
+            {
+                var constraint = navProperty.Partner.ReferentialConstraint;
+                var keyValuePairs = new List<KeyValuePairDetail>();
+                foreach (var propertyPair in constraint.PropertyPairs)
+                {
+                    var keyValue = new KeyValuePair<string, object>(
+                        propertyPair.DependentProperty.Name,
+                        keys.Single(k => k.Key == propertyPair.PrincipalProperty.Name).Value);
+                    var detail = new KeyValuePairDetail(keyValue,
+                        typeof(T).GetProperty(propertyPair.PrincipalProperty.Name).PropertyType);
+                    keyValuePairs.Add(detail);
+                }
+                exp = KeyEqualsExpression<TEntity>(keyValuePairs.ToArray());
+            }
+            else
+            {
+                isSingleResult = true;
+                var keyEqualsExpression = Crud.Secured.KeyEqualsExpression(keys.Cast<object>().ToArray());
+                var entity = Crud.Secured.Context.Set<T>()
+                    .Single(keyEqualsExpression);
+                var keyValuePairs = new List<KeyValuePairDetail>();
+                foreach (var propertyPair in navProperty.ReferentialConstraint.PropertyPairs)
+                {
+                    var propertyValue = entity.GetPropertyValue(propertyPair.DependentProperty.Name);
+                    var keyValue = new KeyValuePair<string, object>(
+                        propertyPair.PrincipalProperty.Name,
+                        propertyValue);
+                    var principalType = typeof(TEntity).GetProperty(propertyPair.PrincipalProperty.Name).PropertyType;
+                    var dependantType = typeof(T).GetProperty(propertyPair.DependentProperty.Name).PropertyType;
+                    if (Nullable.GetUnderlyingType(dependantType) != null &&
+                        Nullable.GetUnderlyingType(principalType) == null &&
+                        Equals(null, keyValue.Value))
+                    {
+                        return new GetNavigationPropertyTypedResult(null, true, null);
+                    }
+                    var detail = new KeyValuePairDetail(keyValue, principalType);
+                    keyValuePairs.Add(detail);
+                }
+                exp = KeyEqualsExpression<TEntity>(keyValuePairs.ToArray());
+            }
+
+            var entityQuery = Crud.Secured.Context.Set<TEntity>().Where(exp);
+            return new GetNavigationPropertyTypedResult(entityQuery, isSingleResult,
+                isSingleResult ? new SingleResult<TEntity>(entityQuery) : null);
+        }
+
+        public virtual Expression<Func<TEntity, bool>> KeyEqualsExpression<TEntity>(KeyValuePairDetail[] keys)
+        {
+            // TODO: Blog about needing a parameter name here, looks like a bug
+            var p = Expression.Parameter(typeof(TEntity), "o");
+            var expressions = new List<BinaryExpression>();
+            for (var i = 0; i < keys.Length; i++)
+            {
+                var key = keys[i].KeyValuePair.Key;
+                var value = keys[i].KeyValuePair.Value;
+                expressions.Add(Expression.Equal(Expression.PropertyOrField(p, key),
+                    Expression.Constant(value, keys[i].ValueType)));
+            }
+            Expression expression = expressions.First();
+            for (var i = 1; i < expressions.Count; i++)
+            {
+                expression = Expression.And(expression, expressions[i]);
+            }
+            var lambda = Expression.Lambda(
+                expression, p);
+            return (Expression<Func<TEntity, bool>>)lambda;
         }
 
         #endregion GET
@@ -147,8 +250,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             {
                 throw new ArgumentNullException(nameof(entity));
             }
-            return (bool) ValidateEntityMethod.MakeGenericMethod(entity.GetType())
-                .Invoke(this, new[] {entity, validated, path });
+            return (bool)ValidateEntityMethod.MakeGenericMethod(entity.GetType())
+                .Invoke(this, new[] { entity, validated, path });
         }
 
         public virtual bool ValidateEntity<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "")
