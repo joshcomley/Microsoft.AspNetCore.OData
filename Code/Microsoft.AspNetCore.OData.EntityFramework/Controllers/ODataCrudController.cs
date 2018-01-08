@@ -123,17 +123,17 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             if (navProperty.Partner.ReferentialConstraint != null)
             {
                 var constraint = navProperty.Partner.ReferentialConstraint;
-                var keyValuePairs = new List<KeyValuePairDetail>();
+                var keyValuePairs = new List<WhereQuery>();
                 foreach (var propertyPair in constraint.PropertyPairs)
                 {
-                    var keyValue = new KeyValuePair<string, object>(
-                        propertyPair.DependentProperty.Name,
-                        keys.Single(k => k.Key == propertyPair.PrincipalProperty.Name).Value);
-                    var detail = new KeyValuePairDetail(keyValue,
-                        typeof(T).GetProperty(propertyPair.PrincipalProperty.Name).PropertyType);
-                    keyValuePairs.Add(detail);
+                    var keyValue = 
+                        new WhereQuery(
+                            propertyPair.DependentProperty.Name,
+                            keys.Single(k => k.Key == propertyPair.PrincipalProperty.Name).Value,
+                            typeof(TEntity).GetProperty(propertyPair.DependentProperty.Name).PropertyType);
+                    keyValuePairs.Add(keyValue);
                 }
-                exp = KeyEqualsExpression<TEntity>(keyValuePairs.ToArray());
+                exp = Brandless.Data.EntityFramework.QueryBuilder.WhereExpression<TEntity>(keyValuePairs.ToArray());
             }
             else
             {
@@ -141,52 +141,31 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 var keyEqualsExpression = Crud.Secured.KeyEqualsExpression(keys.Cast<object>().ToArray());
                 var entity = Crud.Secured.Context.Set<T>()
                     .Single(keyEqualsExpression);
-                var keyValuePairs = new List<KeyValuePairDetail>();
+                var keyValuePairs = new List<WhereQuery>();
                 foreach (var propertyPair in navProperty.ReferentialConstraint.PropertyPairs)
                 {
                     var propertyValue = entity.GetPropertyValue(propertyPair.DependentProperty.Name);
-                    var keyValue = new KeyValuePair<string, object>(
-                        propertyPair.PrincipalProperty.Name,
-                        propertyValue);
+                    var propertyName = propertyPair.PrincipalProperty.Name;
                     var principalType = typeof(TEntity).GetProperty(propertyPair.PrincipalProperty.Name).PropertyType;
                     var dependantType = typeof(T).GetProperty(propertyPair.DependentProperty.Name).PropertyType;
                     if (Nullable.GetUnderlyingType(dependantType) != null &&
                         Nullable.GetUnderlyingType(principalType) == null &&
-                        Equals(null, keyValue.Value))
+                        Equals(null, propertyValue))
                     {
                         return new GetNavigationPropertyTypedResult(null, true, null);
                     }
-                    var detail = new KeyValuePairDetail(keyValue, principalType);
+                    var detail = new WhereQuery(
+                        propertyName, 
+                        propertyValue, 
+                        principalType);
                     keyValuePairs.Add(detail);
                 }
-                exp = KeyEqualsExpression<TEntity>(keyValuePairs.ToArray());
+                exp = Brandless.Data.EntityFramework.QueryBuilder.WhereExpression<TEntity>(keyValuePairs.ToArray());
             }
 
             var entityQuery = Crud.Secured.Context.Set<TEntity>().Where(exp);
             return new GetNavigationPropertyTypedResult(entityQuery, isSingleResult,
                 isSingleResult ? new SingleResult<TEntity>(entityQuery) : null);
-        }
-
-        public virtual Expression<Func<TEntity, bool>> KeyEqualsExpression<TEntity>(KeyValuePairDetail[] keys)
-        {
-            // TODO: Blog about needing a parameter name here, looks like a bug
-            var p = Expression.Parameter(typeof(TEntity), "o");
-            var expressions = new List<BinaryExpression>();
-            for (var i = 0; i < keys.Length; i++)
-            {
-                var key = keys[i].KeyValuePair.Key;
-                var value = keys[i].KeyValuePair.Value;
-                expressions.Add(Expression.Equal(Expression.PropertyOrField(p, key),
-                    Expression.Constant(value, keys[i].ValueType)));
-            }
-            Expression expression = expressions.First();
-            for (var i = 1; i < expressions.Count; i++)
-            {
-                expression = Expression.And(expression, expressions[i]);
-            }
-            var lambda = Expression.Lambda(
-                expression, p);
-            return (Expression<Func<TEntity, bool>>)lambda;
         }
 
         #endregion GET
@@ -341,7 +320,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         [LoadModel]
         public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
-            var entity = Crud.Secured.Find(keys);
+            var entity = Crud.Secured.Find(keys.Cast<object>().ToArray());
             var currentEntity = await FindAsync(entity);
             return await Patch(keys, ResolveJObject(), currentEntity);
         }
