@@ -400,14 +400,18 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         protected virtual async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject value)
         {
             await OnBeforeFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
-            PatchEntityProperties(currentEntity, patchEntity, value);
+            await PatchEntityProperties(currentEntity, patchEntity, value);
             await OnAfterFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
         }
 
-        protected virtual void PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
+        protected virtual async Task PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
         {
             foreach (var property in value)
             {
+                if (!ShouldPatchEntityProperty(currentEntity, patchEntity, property.Key))
+                {
+                    continue;
+                }
                 // If we don't allow get on this property in OData, don't allow set
                 var entityType = currentEntity.GetType();
                 if (!ModelAccessor.EdmModel.HasProperty(entityType, property.Key))
@@ -530,7 +534,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             {
                                 index = submittedList.IndexOf(child);
                             }
-                            PatchEntityProperties(child, submittedList[index], property.Value[index] as JObject);
+                            await PatchEntityProperties(child, submittedList[index], property.Value[index] as JObject);
                         }
                         propertyInfo.SetValue(currentEntity, dbList);
                     }
@@ -549,6 +553,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     propertyInfo.SetValue(currentEntity, patchedValue);
                 }
             }
+        }
+
+        protected virtual bool ShouldPatchEntityProperty(object currentEntity, object patchEntity, string propertyKey)
+        {
+            return true;
         }
 
         public virtual TEntity GetAndInclude<TEntity>(TEntity entity, string property) where TEntity : class
