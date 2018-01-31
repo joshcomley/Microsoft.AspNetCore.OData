@@ -6,7 +6,7 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
 {
     public class KeyValueBinder : IModelBinder
     {
-        public async Task BindModelAsync(ModelBindingContext bindingContext)
+        public Task BindModelAsync(ModelBindingContext bindingContext)
         {
             var key = bindingContext.ModelName;
             var value = bindingContext.ActionContext.RouteData.Values[key] as List<KeyValuePair<string, object>>;
@@ -14,6 +14,8 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
             {
                 bindingContext.Result = ModelBindingResult.Success(value.ToArray());
             }
+
+            return Task.FromResult<object>(null);
         }
     }
 }

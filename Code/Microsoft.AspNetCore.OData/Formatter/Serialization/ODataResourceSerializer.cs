@@ -117,7 +117,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
             }
         }
 
-        private async Task WriteDeltaResource(object graph, ODataDeltaWriter writer, ODataSerializerContext writeContext)
+        private Task WriteDeltaResource(object graph, ODataDeltaWriter writer, ODataSerializerContext writeContext)
         {
             Contract.Assert(writeContext != null);
 
@@ -135,6 +135,8 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
                     writer.WriteEnd();
                 }
             }
+
+            return Task.FromResult<object>(null);
         }
 
         private async Task WriteResourceAsync(object graph, ODataWriter writer, ODataSerializerContext writeContext,

@@ -8,7 +8,7 @@ namespace Microsoft.AspNetCore.OData.Extensions
         private static int? _pageSizeOverride;
         private static bool _pageSizeOverrideSet;
 
-        public override int? Value
+        public override int? DefaultValue
         {
             get
             {

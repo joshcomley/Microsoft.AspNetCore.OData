@@ -8,6 +8,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>bin\local\Debug\netcoreapp2.0\</OutputPath>
+    <WarningsAsErrors>NU1605;CS1998</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
