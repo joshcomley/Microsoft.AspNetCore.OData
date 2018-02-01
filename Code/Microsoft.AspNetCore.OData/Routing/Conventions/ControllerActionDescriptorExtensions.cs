@@ -5,8 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Query.Paging;
 
@@ -47,17 +49,17 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
         /// <summary>
         /// Returns the page size attribute
         /// </summary>
-        /// <param name="actionDescriptor"></param>
+        /// <param name="context"></param>
         /// <returns></returns>
-        public static ActionPageSize PageSize(this ActionDescriptor actionDescriptor)
+        public static async Task<ActionPageSize> PageSizeAsync(this ActionExecutedContext context)
         {
-            var controllerActionDescriptor = actionDescriptor as ControllerActionDescriptor;
+            var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
             var pageSizeAttribute = controllerActionDescriptor?.MethodInfo.GetCustomAttribute<PageSizeAttribute>();
             var actionPageSize = new ActionPageSize();
             if (pageSizeAttribute != null)
             {
                 actionPageSize.IsSet = true;
-                actionPageSize.Size = pageSizeAttribute.Value;
+                actionPageSize.Size = await pageSizeAttribute.GetValueAsync(context);
             }
             return actionPageSize;
         }

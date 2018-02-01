@@ -1,19 +1,26 @@
 using System;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Microsoft.AspNetCore.OData.Query.Paging
 {
     public class PageSizeAttribute : Attribute
 	{
-		public virtual int? Value { get; }
+		public virtual int? DefaultValue { get; }
 
 		public PageSizeAttribute(PageSize pageSize)
 		{
 
 		}
 
-		public PageSizeAttribute(int value)
+		public PageSizeAttribute(int defaultValue)
 		{
-			Value = value;
+			DefaultValue = defaultValue;
 		}
+
+	    public virtual Task<int?> GetValueAsync(ActionExecutedContext context)
+	    {
+	        return Task.FromResult(DefaultValue);
+	    }
 	}
 }

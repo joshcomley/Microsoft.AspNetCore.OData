@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -36,7 +37,21 @@ namespace Microsoft.AspNetCore.OData
                 };
         }
 
-        public override void OnActionExecuted(ActionExecutedContext context)
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        {
+            ActionFilterAttribute actionFilterAttribute = this;
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (next == null)
+                throw new ArgumentNullException(nameof(next));
+            actionFilterAttribute.OnActionExecuting(context);
+            if (context.Result != null)
+                return;
+            ActionExecutedContext context1 = await next();
+            await OnActionExecutedAsync(context1);
+        }
+
+        public async Task OnActionExecutedAsync(ActionExecutedContext context)
         {
             if (context == null)
             {
@@ -86,7 +101,7 @@ namespace Microsoft.AspNetCore.OData
 
             var shouldApplyQuery =
                 request.HasQueryOptions() ||
-                ResolvePageSize(_querySettings, context.ActionDescriptor).HasValue ||
+                (await ResolvePageSize(_querySettings, context)).HasValue ||
                 new InterceptorContainer(elementClrType, context.HttpContext.RequestServices).Any ||
                 value is SingleResult ||
                 ODataCountMediaTypeMapping.IsCountRequest(context.HttpContext) ||
@@ -100,7 +115,10 @@ namespace Microsoft.AspNetCore.OData
             var queryOptions = new ODataQueryOptions(queryContext, request, context.HttpContext.RequestServices);
 
             long? count = null;
-            var processedResult = ApplyQueryOptions(result.Value, queryOptions, context.ActionDescriptor);
+            var processedResult = await ApplyQueryOptionsAsync(
+                result.Value,
+                queryOptions,
+                context);
 
             var enumberable = processedResult as IEnumerable<object>;
             if (enumberable != null)
@@ -109,7 +127,7 @@ namespace Microsoft.AspNetCore.OData
                 if (queryOptions.Count)
                 {
                     count = request.ODataFeature().TotalCount;
-                    count = Count(result.Value, queryOptions, context.ActionDescriptor);
+                    count = await Count(result.Value, queryOptions, context.ActionDescriptor);
                 }
                 // We might be getting a single result, so no paging involved
                 var nextPageLink = request.ODataFeature().NextLink;
@@ -186,7 +204,9 @@ namespace Microsoft.AspNetCore.OData
             }
         }
 
-        public virtual object ApplyQueryOptions(object value, ODataQueryOptions options, ActionDescriptor descriptor)
+        public virtual async Task<object> ApplyQueryOptionsAsync(object value,
+            ODataQueryOptions options,
+            ActionExecutedContext context)
         {
             var enumerable = value as IEnumerable;
 
@@ -200,17 +220,17 @@ namespace Microsoft.AspNetCore.OData
                 if (singleResult == null)
                 {
                     // response is a single entity.
-                    return ApplyQueryObject(value, options, false, descriptor);
+                    return ApplyQueryObjectAsync(value, options, false, context);
                 }
                 // response is a composable SingleResult. ApplyQuery and call SingleOrDefault.
                 var singleQueryable = singleResult.Queryable;
-                singleQueryable = ApplyQuery(singleQueryable, options, true, descriptor);
-                return SingleOrDefault(singleQueryable, descriptor);
+                singleQueryable = await ApplyQueryAsync(singleQueryable, options, true, context);
+                return SingleOrDefault(singleQueryable, context.ActionDescriptor);
             }
 
             // response is a collection.
             var query = (value as IQueryable) ?? enumerable.AsQueryable();
-            query = ApplyQuery(query, options, true, descriptor);
+            query = await ApplyQueryAsync(query, options, true, context);
             if (ODataCountMediaTypeMapping.IsCountRequest(options.Request.HttpContext))
             {
                 long? count = options.Request.ODataFeature().TotalCount;
@@ -234,7 +254,10 @@ namespace Microsoft.AspNetCore.OData
         /// <param name="shouldApplyQuery"></param>
         /// <param name="actionDescriptor"></param>
         /// <returns>The new entity after the $select and $expand query has been applied to.</returns>
-        public virtual IQueryable ApplyQuery(IQueryable query, ODataQueryOptions queryOptions, bool shouldApplyQuery, ActionDescriptor actionDescriptor)
+        public virtual async Task<IQueryable> ApplyQueryAsync(IQueryable query,
+            ODataQueryOptions queryOptions,
+            bool shouldApplyQuery,
+            ActionExecutedContext actionDescriptor)
         {
             if (query == null)
             {
@@ -244,7 +267,8 @@ namespace Microsoft.AspNetCore.OData
             {
                 throw Error.ArgumentNull("queryOptions");
             }
-            query = (IQueryable)InvokeInterceptors(query, queryOptions.Context.ElementClrType, queryOptions, _querySettings);
+            query = (IQueryable)
+                await InvokeInterceptorsAsync(query, queryOptions.Context.ElementClrType, queryOptions, _querySettings);
             if (shouldApplyQuery)
             {
                 // TODO: If we are using SQL, set this to false
@@ -260,7 +284,7 @@ namespace Microsoft.AspNetCore.OData
                 {
                     HandleNullPropagation = HandleNullPropagationOption.False
                 },
-                ResolvePageSize(_querySettings, actionDescriptor));
+                await ResolvePageSize(_querySettings, actionDescriptor));
             }
             return query;
         }
@@ -268,13 +292,18 @@ namespace Microsoft.AspNetCore.OData
         /// <summary>
         /// Applies the query to the given entity based on incoming query from uri and query settings.
         /// </summary>
-        /// <param name="entity">The original entity from the response message.</param>
+        /// <param name="query"></param>
         /// <param name="queryOptions">
-        /// The <see cref="ODataQueryOptions"/> instance constructed based on the incoming request.
+        ///     The <see cref="ODataQueryOptions"/> instance constructed based on the incoming request.
         /// </param>
+        /// <param name="shouldApplyQuery"></param>
+        /// <param name="context"></param>
+        /// <param name="entity">The original entity from the response message.</param>
         /// <returns>The new entity after the $select and $expand query has been applied to.</returns>
-        public virtual object ApplyQueryObject(object query, ODataQueryOptions queryOptions, bool shouldApplyQuery,
-            ActionDescriptor actionDescriptor)
+        public virtual async Task<object> ApplyQueryObjectAsync(object query,
+            ODataQueryOptions queryOptions,
+            bool shouldApplyQuery,
+            ActionExecutedContext context)
         {
             if (query == null)
             {
@@ -285,21 +314,21 @@ namespace Microsoft.AspNetCore.OData
                 throw Error.ArgumentNull("queryOptions");
             }
 
-            query = InvokeInterceptors(query, queryOptions.Context.ElementClrType, queryOptions, _querySettings);
+            query = await InvokeInterceptorsAsync(query, queryOptions.Context.ElementClrType, queryOptions, _querySettings);
 
             if (shouldApplyQuery)
             {
-                query = queryOptions.ApplyTo(query as IQueryable, _querySettings, ResolvePageSize(_querySettings, actionDescriptor));//, ResolvePageSize(_querySettings, actionDescriptor));
+                query = queryOptions.ApplyTo(query as IQueryable, _querySettings, await ResolvePageSize(_querySettings, context));//, ResolvePageSize(_querySettings, actionDescriptor));
             }
             return query;
         }
 
-        private object InvokeInterceptors(object query, Type elementClrType, ODataQueryOptions queryOptions, ODataQuerySettings settings)
+        private Task<object> InvokeInterceptorsAsync(object query, Type elementClrType, ODataQueryOptions queryOptions, ODataQuerySettings settings)
         {
-            return ApplyInterceptors(query, elementClrType, queryOptions.Request, settings, queryOptions);
+            return ApplyInterceptorsAsync(query, elementClrType, queryOptions.Request, settings, queryOptions);
         }
 
-        internal static IQueryable<T> ApplyInterceptorsGeneric<T>(
+        internal static Task<IQueryable> ApplyInterceptorsGeneric<T>(
             IQueryable<T> query,
             HttpRequest request,
             ODataQuerySettings querySettings,
@@ -311,10 +340,10 @@ namespace Microsoft.AspNetCore.OData
             {
                 query = query.Where(interceptor.Intercept(request.HttpContext, querySettings, queryOptions));
             }
-            return query;
+            return Task.FromResult<IQueryable>(query);
         }
 
-        internal static object ApplyInterceptors(
+        internal static async Task<object> ApplyInterceptorsAsync(
             object query,
             Type elementClrType,
             HttpRequest request,
@@ -351,7 +380,7 @@ namespace Microsoft.AspNetCore.OData
                         .Invoke(null, new[] { queryToFilter });
             }
             var result =
-                (IQueryable)
+                await (Task<IQueryable>)
                     GetGenericMethod(nameof(ApplyInterceptorsGeneric), elementClrType)
                 .Invoke(null, new[] { queryToFilter, request, querySettings, queryOptions });
             if (returnAsSingle)
@@ -383,13 +412,13 @@ namespace Microsoft.AspNetCore.OData
                 .MakeGenericMethod(elementClrType);
         }
 
-        public virtual long Count(object value, ODataQueryOptions options, ActionDescriptor descriptor)
+        public virtual Task<long> Count(object value, ODataQueryOptions options, ActionDescriptor descriptor)
         {
             var enumerable = value as IEnumerable;
             if (enumerable == null)
             {
                 // response is single entity.
-                return 1;
+                return Task.FromResult(1L);
             }
 
             // response is a collection.
@@ -400,20 +429,22 @@ namespace Microsoft.AspNetCore.OData
             };
             var forCount = options.ApplyForCount(query, settings);
             var count = forCount.Cast<object>().LongCount();
-            return count;
+            return Task.FromResult(count);
         }
 
         private int? _pageSize;
         private bool _pageSizeChecked;
-        private int? ResolvePageSize(ODataQuerySettings querySettings, ActionDescriptor actionDescriptor)
+        private async Task<int?> ResolvePageSize(
+            ODataQuerySettings querySettings,
+            ActionExecutedContext context)
         {
-           // if (!_pageSizeChecked)
-          //  {
-             //   _pageSizeChecked = true;
-                var queryPageSize = querySettings.PageSize;
-                var actionPageSize = actionDescriptor.PageSize();
-                _pageSize = actionPageSize.IsSet ? actionPageSize.Size : queryPageSize;
-        //    }
+            // if (!_pageSizeChecked)
+            //  {
+            //   _pageSizeChecked = true;
+            var queryPageSize = querySettings.PageSize;
+            var actionPageSize = await context.PageSizeAsync();
+            _pageSize = actionPageSize.IsSet ? actionPageSize.Size : queryPageSize;
+            //    }
             return _pageSize;
         }
     }

@@ -1,7 +1,7 @@
 <!-- This file may be overwritten by automation. -->
 <Project>
   <PropertyGroup>
-    <VersionPrefix>1.1.5</VersionPrefix>
+    <VersionPrefix>1.2.10016</VersionPrefix>
     <VersionSuffix>alpha-10021</VersionSuffix>
   </PropertyGroup>
 </Project>

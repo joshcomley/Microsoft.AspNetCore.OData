@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Brandless.Data;
@@ -20,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData;
+using Microsoft.OData.Edm;
 using Newtonsoft.Json.Linq;
 
 namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
@@ -54,7 +56,6 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual IRevisionKeyGenerator RevisionKeyGenerator => Data.RevisionKeyGenerator;
         public virtual IServiceProvider Services => HttpContext.RequestServices;
 
-
         #region Security
         public T FindEntityById(params object[] id)
         {
@@ -84,6 +85,87 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 result = Ok(new SingleResult<T>(entityQuery));
             }
             return Task.FromResult(result);
+        }
+
+        [HttpGet]
+        public virtual Task<IActionResult> GetNavigationProperty([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys,
+            string navigationProperty)
+        {
+            var propertyType = typeof(T).GetProperty(navigationProperty).PropertyType;
+            if (typeof(IEnumerable).IsAssignableFrom(propertyType) && !typeof(string).IsAssignableFrom(propertyType))
+            {
+                propertyType = propertyType.GetGenericArguments()[0];
+            }
+            var typedResult = (GetNavigationPropertyTypedResult)GetType().GetMethod(nameof(GetNavigationPropertyTyped))
+                .MakeGenericMethod(propertyType)
+                .Invoke(this, new object[] { keys, navigationProperty });
+            IActionResult result;
+            if (typedResult.IsSingleResult && typedResult.SingleResult == null)
+            {
+                result = NotFound();
+            }
+            else
+            {
+                result = typedResult.IsSingleResult 
+                    ? Ok(typedResult.SingleResult) 
+                    : Ok(typedResult.Queryable);
+            }
+            return Task.FromResult(result);
+        }
+
+        public virtual GetNavigationPropertyTypedResult GetNavigationPropertyTyped<TEntity>([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys,
+            string navigationProperty) where TEntity : class
+        {
+            var edmType = ModelAccessor.EdmModel.GetEdmType(typeof(T)) as EdmEntityType;
+            var navProperty = edmType.NavigationProperties().Single(p => p.Name == navigationProperty);
+            Expression<Func<TEntity, bool>> exp;
+            var isSingleResult = false;
+            if (navProperty.Partner.ReferentialConstraint != null)
+            {
+                var constraint = navProperty.Partner.ReferentialConstraint;
+                var keyValuePairs = new List<WhereQuery>();
+                foreach (var propertyPair in constraint.PropertyPairs)
+                {
+                    var keyValue = 
+                        new WhereQuery(
+                            propertyPair.DependentProperty.Name,
+                            keys.Single(k => k.Key == propertyPair.PrincipalProperty.Name).Value,
+                            typeof(TEntity).GetProperty(propertyPair.DependentProperty.Name).PropertyType);
+                    keyValuePairs.Add(keyValue);
+                }
+                exp = Brandless.Data.EntityFramework.QueryBuilder.WhereExpression<TEntity>(keyValuePairs.ToArray());
+            }
+            else
+            {
+                isSingleResult = true;
+                var keyEqualsExpression = Crud.Secured.KeyEqualsExpression(keys.Cast<object>().ToArray());
+                var entity = Crud.Secured.Context.Set<T>()
+                    .Single(keyEqualsExpression);
+                var keyValuePairs = new List<WhereQuery>();
+                foreach (var propertyPair in navProperty.ReferentialConstraint.PropertyPairs)
+                {
+                    var propertyValue = entity.GetPropertyValue(propertyPair.DependentProperty.Name);
+                    var propertyName = propertyPair.PrincipalProperty.Name;
+                    var principalType = typeof(TEntity).GetProperty(propertyPair.PrincipalProperty.Name).PropertyType;
+                    var dependantType = typeof(T).GetProperty(propertyPair.DependentProperty.Name).PropertyType;
+                    if (Nullable.GetUnderlyingType(dependantType) != null &&
+                        Nullable.GetUnderlyingType(principalType) == null &&
+                        Equals(null, propertyValue))
+                    {
+                        return new GetNavigationPropertyTypedResult(null, true, null);
+                    }
+                    var detail = new WhereQuery(
+                        propertyName, 
+                        propertyValue, 
+                        principalType);
+                    keyValuePairs.Add(detail);
+                }
+                exp = Brandless.Data.EntityFramework.QueryBuilder.WhereExpression<TEntity>(keyValuePairs.ToArray());
+            }
+
+            var entityQuery = Crud.Secured.Context.Set<TEntity>().Where(exp);
+            return new GetNavigationPropertyTypedResult(entityQuery, isSingleResult,
+                isSingleResult ? new SingleResult<TEntity>(entityQuery) : null);
         }
 
         #endregion GET
@@ -147,8 +229,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             {
                 throw new ArgumentNullException(nameof(entity));
             }
-            return (bool) ValidateEntityMethod.MakeGenericMethod(entity.GetType())
-                .Invoke(this, new[] {entity, validated, path });
+            return (bool)ValidateEntityMethod.MakeGenericMethod(entity.GetType())
+                .Invoke(this, new[] { entity, validated, path });
         }
 
         public virtual bool ValidateEntity<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "")
@@ -238,7 +320,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         [LoadModel]
         public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
-            var entity = Crud.Secured.Find(keys);
+            var entity = Crud.Secured.Find(keys.Cast<object>().ToArray());
             var currentEntity = await FindAsync(entity);
             return await Patch(keys, ResolveJObject(), currentEntity);
         }
@@ -318,14 +400,18 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         protected virtual async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject value)
         {
             await OnBeforeFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
-            PatchEntityProperties(currentEntity, patchEntity, value);
+            await PatchEntityProperties(currentEntity, patchEntity, value);
             await OnAfterFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
         }
 
-        protected virtual void PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
+        protected virtual async Task PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
         {
             foreach (var property in value)
             {
+                if (!ShouldPatchEntityProperty(currentEntity, patchEntity, property.Key))
+                {
+                    continue;
+                }
                 // If we don't allow get on this property in OData, don't allow set
                 var entityType = currentEntity.GetType();
                 if (!ModelAccessor.EdmModel.HasProperty(entityType, property.Key))
@@ -448,7 +534,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             {
                                 index = submittedList.IndexOf(child);
                             }
-                            PatchEntityProperties(child, submittedList[index], property.Value[index] as JObject);
+                            await PatchEntityProperties(child, submittedList[index], property.Value[index] as JObject);
                         }
                         propertyInfo.SetValue(currentEntity, dbList);
                     }
@@ -467,6 +553,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     propertyInfo.SetValue(currentEntity, patchedValue);
                 }
             }
+        }
+
+        protected virtual bool ShouldPatchEntityProperty(object currentEntity, object patchEntity, string propertyKey)
+        {
+            return true;
         }
 
         public virtual TEntity GetAndInclude<TEntity>(TEntity entity, string property) where TEntity : class
