@@ -57,7 +57,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual IServiceProvider Services => HttpContext.RequestServices;
 
         #region Security
-        public T FindEntityById(object[] id)
+        public T FindEntityById(object id)
         {
             return Crud.Secured.Find(id);
         }
@@ -761,7 +761,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual string PostedJson { get; set; }
 
         public virtual Type EntityType => typeof(T);
-        object IODataCrudController.FindEntityById(object[] id)
+        object IODataCrudController.FindEntityById(object id)
         {
             return FindEntityById(id);
         }
