@@ -58,7 +58,8 @@ namespace Microsoft.AspNetCore.OData
                 throw Error.ArgumentNull("context");
             }
 
-            var response = context.Result as StatusCodeResult;
+            var contextResult = context.Result;
+            var response = contextResult as StatusCodeResult;
             if (response != null)// && !response.IsSuccessStatusCode())
             {
                 return;
@@ -71,14 +72,14 @@ namespace Microsoft.AspNetCore.OData
                 throw Error.InvalidOperation(SRResources.QueryGetModelMustNotReturnNull);
             }
 
-            var result = context.Result as ObjectResult;
+            var result = contextResult as ObjectResult;
             if (result == null)
             {
                 if (context.Exception != null)
                 {
                     throw context.Exception;
                 }
-                throw Error.Argument("context", SRResources.QueryingRequiresObjectContent, context.Result.GetType().FullName);
+                throw Error.Argument("context", SRResources.QueryingRequiresObjectContent, contextResult.GetType().FullName);
             }
 
             if (result?.Value is ODataError)
@@ -220,7 +221,7 @@ namespace Microsoft.AspNetCore.OData
                 if (singleResult == null)
                 {
                     // response is a single entity.
-                    return ApplyQueryObjectAsync(value, options, false, context);
+                    return await ApplyQueryObjectAsync(value, options, false, context);
                 }
                 // response is a composable SingleResult. ApplyQuery and call SingleOrDefault.
                 var singleQueryable = singleResult.Queryable;
