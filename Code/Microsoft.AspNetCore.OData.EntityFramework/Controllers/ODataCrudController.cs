@@ -57,7 +57,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual IServiceProvider Services => HttpContext.RequestServices;
 
         #region Security
-        public T FindEntityById(params object[] id)
+        public T FindEntityById(object[] id)
         {
             return Crud.Secured.Find(id);
         }
@@ -606,7 +606,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Ok();
         }
 
-        protected virtual async Task<DeleteActionResult> DeleteEntity(params KeyValuePair<string, object>[] key)
+        protected virtual async Task<DeleteActionResult> DeleteEntity(KeyValuePair<string, object>[] key)
         {
             var result = await Crud.Secured.DeleteAndSaveAsync(key);
             return result;
@@ -761,7 +761,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual string PostedJson { get; set; }
 
         public virtual Type EntityType => typeof(T);
-        object IODataCrudController.FindEntityById(params object[] id)
+        object IODataCrudController.FindEntityById(object[] id)
         {
             return FindEntityById(id);
         }

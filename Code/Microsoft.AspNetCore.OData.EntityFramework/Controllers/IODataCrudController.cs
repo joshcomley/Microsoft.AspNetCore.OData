@@ -13,6 +13,6 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         object PostedEntity { get; set; }
         string PostedJson { get; set; }
         Type EntityType { get; }
-        object FindEntityById(params object[] id);
+        object FindEntityById(object[] id);
     }
 }
