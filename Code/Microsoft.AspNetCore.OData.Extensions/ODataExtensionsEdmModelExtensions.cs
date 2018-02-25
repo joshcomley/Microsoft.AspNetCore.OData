@@ -4,12 +4,13 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Xml;
+using Brandless.AspNetCore.OData.Extensions.Extensions;
+using Brandless.AspNetCore.OData.Extensions.Validation;
 using Iql.DotNet;
 using Iql.DotNet.Serialization;
-using Iql.Parsing;
 using Iql.Queryable;
-using Microsoft.AspNetCore.OData.Extensions.Extensions;
-using Microsoft.AspNetCore.OData.Extensions.Validation;
+using Brandless.AspNetCore.OData.Extensions;
+using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
@@ -23,7 +24,7 @@ using IEdmModel = Microsoft.OData.Edm.IEdmModel;
 using IEdmTerm = Microsoft.OData.Edm.Vocabularies.IEdmTerm;
 using IEdmVocabularyAnnotatable = Microsoft.OData.Edm.Vocabularies.IEdmVocabularyAnnotatable;
 
-namespace Microsoft.AspNetCore.OData.Extensions
+namespace Brandless.AspNetCore.OData.Extensions
 {
     public static class ODataExtensionsEdmModelExtensions
     {

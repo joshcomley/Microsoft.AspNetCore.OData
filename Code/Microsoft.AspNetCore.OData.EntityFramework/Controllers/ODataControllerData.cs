@@ -1,3 +1,4 @@
+using Brandless.AspNetCore.OData.Extensions;
 using Brandless.Data.Contracts;
 using Brandless.Data.EntityFramework.Crud;
 using Microsoft.AspNetCore.Identity;

@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.OData.Extensions;
+using Brandless.AspNetCore.OData.Extensions;
 using Microsoft.OData;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;

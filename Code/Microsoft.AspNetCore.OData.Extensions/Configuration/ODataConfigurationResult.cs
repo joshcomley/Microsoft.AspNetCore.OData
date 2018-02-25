@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.OData.Edm;
 
-namespace Microsoft.AspNetCore.OData.Extensions.Configuration
+namespace Brandless.AspNetCore.OData.Extensions.Configuration
 {
     public class ODataConfigurationResult
     {

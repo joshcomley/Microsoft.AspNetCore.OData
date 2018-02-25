@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData.Edm;
 
-namespace Microsoft.AspNetCore.OData.Extensions.Configuration
+namespace Brandless.AspNetCore.OData.Extensions.Configuration
 {
     public class ODataConfigurator<TService>
     {

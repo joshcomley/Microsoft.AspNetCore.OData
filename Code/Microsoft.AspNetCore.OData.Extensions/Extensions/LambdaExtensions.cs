@@ -3,7 +3,7 @@ using System.Diagnostics.Contracts;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Microsoft.AspNetCore.OData.Extensions.Extensions
+namespace Brandless.AspNetCore.OData.Extensions.Extensions
 {
     public static class LambdaExtensions
     {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.OData.Builder;
 
-namespace Microsoft.AspNetCore.OData.Extensions
+namespace Brandless.AspNetCore.OData.Extensions
 {
     public static class ODataServerValidationExtensions
     {

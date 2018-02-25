@@ -1,6 +1,6 @@
 using Microsoft.OData.Edm;
 
-namespace Microsoft.AspNetCore.OData.Extensions
+namespace Brandless.AspNetCore.OData.Extensions
 {
     public class EdmModelAccessor : IEdmModelAccessor
     {

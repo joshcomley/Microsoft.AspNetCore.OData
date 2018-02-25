@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace Microsoft.AspNetCore.OData.Extensions.Extensions
+namespace Brandless.AspNetCore.OData.Extensions.Extensions
 {
     public static class ActionExecutingContextExtensions
     {

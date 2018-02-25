@@ -5,6 +5,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
+using Brandless.AspNetCore.OData.Extensions;
+using Brandless.AspNetCore.OData.Extensions.Validation;
 using Brandless.Data;
 using Brandless.Data.Contracts;
 using Brandless.Data.Entities;
@@ -14,8 +16,6 @@ using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Extensions;
-using Microsoft.AspNetCore.OData.Extensions.Configuration;
-using Microsoft.AspNetCore.OData.Extensions.Validation;
 using Microsoft.AspNetCore.OData.Routing.Conventions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -66,16 +66,22 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         #region GET
         // GET: api/Products
         [HttpGet]
-        public virtual Task<IQueryable<T>> Get()
+        public virtual async Task<IActionResult> Get()
+        {
+            IActionResult result = Ok(await GetEntitySetQuery());
+            return result;
+        }
+
+        public virtual Task<IQueryable<T>> GetEntitySetQuery()
         {
             return Task.FromResult(Crud.Secured.All());
         }
 
         [HttpGet]
-        public virtual Task<IActionResult> Get([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
+        public virtual async Task<IActionResult> Get([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             IActionResult result;
-            var entityQuery = Crud.Secured.FindQuery(keys.Cast<object>().ToArray());
+            var entityQuery = await GetEntityQuery(keys);
             if (entityQuery == null || entityQuery.Count() != 1)
             {
                 result = NotFound();
@@ -84,7 +90,12 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             {
                 result = Ok(new SingleResult<T>(entityQuery));
             }
-            return Task.FromResult(result);
+            return result;
+        }
+
+        public virtual Task<IQueryable<T>> GetEntityQuery(KeyValuePair<string, object>[] keys)
+        {
+            return Task.FromResult(Crud.Secured.FindQuery(keys.Cast<object>().ToArray()));
         }
 
         [HttpGet]

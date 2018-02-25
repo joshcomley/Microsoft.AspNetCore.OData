@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using Microsoft.AspNetCore.Server.Kestrel.Transport.Libuv.Internal.Networking;
 using Microsoft.OData.Edm;
 
-namespace Microsoft.AspNetCore.OData.Extensions.Validation
+namespace Brandless.AspNetCore.OData.Extensions.Validation
 {
     public class ValidationMap
     {

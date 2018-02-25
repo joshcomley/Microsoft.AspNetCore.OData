@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.OData.UriParser;
 
-namespace Microsoft.AspNetCore.OData.Extensions
+namespace Brandless.AspNetCore.OData.Extensions
 {
 	/// <summary>
 	/// Captures synchronous and asynchronous exceptions from the pipeline and generates HTML error responses.

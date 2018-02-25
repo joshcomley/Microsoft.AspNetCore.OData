@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.OData.Routing;
 
-namespace Microsoft.AspNetCore.OData.Extensions
+namespace Brandless.AspNetCore.OData.Extensions
 {
     public class ODataFunctionRouteAttribute : ODataRouteAttribute
     {

@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Reflection;
+using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Microsoft.AspNetCore.OData.Extensions.Configuration
+namespace Brandless.AspNetCore.OData.Extensions.Configuration
 {
     public class ODataConfiguration
     {
