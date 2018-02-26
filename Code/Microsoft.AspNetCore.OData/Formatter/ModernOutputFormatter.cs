@@ -8,9 +8,11 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Internal;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.OData.Extensions;
@@ -108,7 +110,28 @@ namespace Microsoft.AspNetCore.OData.Formatter
         {
             await ResolveJsonSerializer(context).WriteJson(context.Object, stream);
         }
-        
+
+        public static async Task<string> SerializeToJsonAsync<T>(
+            IQueryable<T> queryable,
+            HttpRequest request)
+        {
+            var odataQueryApplicator = new ODataQueryApplicator();
+            var data = await odataQueryApplicator.ProcessQueryAsync(request, queryable, typeof(T));
+            var stringWriter = new StringWriter();
+            var serializer = new ODataJsonSerializer(new OutputFormatterWriteContext(
+                request.HttpContext,
+                (stream, encoding) =>
+                {
+                    return stringWriter;
+                },
+                data.GetType(),
+                data));
+            var memoryStream = new MemoryStream();
+            await serializer.WriteJson(data, memoryStream);
+            var json = Encoding.ASCII.GetString(memoryStream.ToArray());
+            return json;
+        }
+
         private static ODataJsonSerializer ResolveJsonSerializer(OutputFormatterWriteContext context)
         {
             return new ODataJsonSerializer(context);
