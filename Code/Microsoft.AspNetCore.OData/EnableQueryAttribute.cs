@@ -75,9 +75,23 @@ namespace Microsoft.AspNetCore.OData
 
             _queryApplicator.PageSize = await ResolvePageSize(context);
 
-            result.Value = await _queryApplicator.ProcessQueryAsync(
+            var rootResult = result;
+            var resultValue = result.Value;
+            var i = 0;
+            while (resultValue is ObjectResult)
+            {
+                i++;
+                result = (ObjectResult) resultValue;
+                resultValue = (resultValue as ObjectResult).Value;
+                if (i > 50)
+                {
+                    // Prevent some weird self referential error causing a crash
+                    break;
+                }
+            }
+            rootResult.Value = await _queryApplicator.ProcessQueryAsync(
                 request,
-                result.Value,
+                resultValue,
                 result.GetElementType());
         }
 

@@ -4,6 +4,6 @@ namespace Brandless.AspNetCore.OData.Extensions
 {
     public interface IEdmModelAccessor
     {
-        IEdmModel EdmModel { get; set; }
+        EdmModel EdmModel { get; set; }
     }
 }

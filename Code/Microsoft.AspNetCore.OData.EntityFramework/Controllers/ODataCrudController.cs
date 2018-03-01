@@ -6,7 +6,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Brandless.AspNetCore.OData.Extensions;
-using Brandless.AspNetCore.OData.Extensions.Validation;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
 using Brandless.Data;
 using Brandless.Data.Contracts;
 using Brandless.Data.Entities;
@@ -251,33 +251,36 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             {
                 return validated[entity];
             }
-            var iqlValidation = ValidationMap.ForType<TEntity>();
+            var modelConfiguration = ModelConfiguration.ForType<TEntity>();
             var accessor = string.IsNullOrWhiteSpace(path) ? "" : ".";
             var isValid = !string.IsNullOrWhiteSpace(path) || TryValidateModel(entity);
             validated.Add(entity, isValid);
-            if (iqlValidation?.EntityValidations != null)
+            if (modelConfiguration != null)
             {
-                foreach (var entityValidation in iqlValidation.EntityValidations)
+                if (modelConfiguration.ValidationMap?.EntityValidations?.Any() == true)
                 {
-                    var iqlValidationResult = entityValidation.ValidationFunction(entity);
-                    isValid = isValid && iqlValidationResult;
-                    if (!iqlValidationResult)
+                    foreach (var entityValidation in modelConfiguration.ValidationMap.EntityValidations)
                     {
-                        ModelState.AddModelError(path, entityValidation.Message);
-                    }
-                }
-            }
-            if (iqlValidation?.PropertyValidations != null)
-            {
-                foreach (var propertyValidationCollection in iqlValidation.PropertyValidations)
-                {
-                    foreach (var propertyValidation in propertyValidationCollection.Validations)
-                    {
-                        var iqlValidationResult = propertyValidation.ValidationFunction(entity);
+                        var iqlValidationResult = entityValidation.Validate(entity);
                         isValid = isValid && iqlValidationResult;
                         if (!iqlValidationResult)
                         {
-                            ModelState.AddModelError($"{path}{accessor}{propertyValidationCollection.PropertyName}", propertyValidation.Message);
+                            ModelState.AddModelError(path, entityValidation.Message);
+                        }
+                    }
+                }
+                if (modelConfiguration.ValidationMap?.PropertyValidations?.Any() == true)
+                {
+                    foreach (var propertyValidationCollection in modelConfiguration.ValidationMap.PropertyValidations)
+                    {
+                        foreach (var propertyValidation in propertyValidationCollection.Validations)
+                        {
+                            var iqlValidationResult = propertyValidation.Validate(entity);
+                            isValid = isValid && iqlValidationResult;
+                            if (!iqlValidationResult)
+                            {
+                                ModelState.AddModelError($"{path}{accessor}{propertyValidationCollection.PropertyName}", propertyValidation.Message);
+                            }
                         }
                     }
                 }
@@ -297,7 +300,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                         isSimpleEnumerable = true;
                     }
                 }
-                var relatedEntityType = Crud.Unsecured.Context.Model.FindEntityType(elementType);
+                var relatedEntityType = Crud.Unsecured.Context.Model.FindEntityType(elementType.Name);
                 if (relatedEntityType != null)
                 {
                     var value = entity.GetPropertyValue(property.Name);

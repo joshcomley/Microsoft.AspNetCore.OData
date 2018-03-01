@@ -1,0 +1,1 @@
+call del "%~dp0Packaged\Tun*.nupkg"

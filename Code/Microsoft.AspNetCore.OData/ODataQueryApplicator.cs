@@ -43,7 +43,7 @@ namespace Microsoft.AspNetCore.OData
             if (request.GetDisplayUrl() == null || value == null ||
                 value.GetType().GetTypeInfo().IsValueType || value is string)
             {
-                return null;
+                return value;
             }
 
             var queryContext = new ODataQueryContext(
@@ -61,7 +61,7 @@ namespace Microsoft.AspNetCore.OData
 
             if (!shouldApplyQuery)
             {
-                return null;
+                return value;
             }
 
             var queryOptions = new ODataQueryOptions(queryContext, request, request.HttpContext.RequestServices);
