@@ -10,6 +10,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.OData.Builder.Conventions;
 using Microsoft.AspNetCore.OData.Builder.Conventions.Attributes;
 using Microsoft.AspNetCore.OData.Common;
+using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Formatter;
 using Microsoft.OData.Edm;
 

@@ -20,31 +20,31 @@ namespace Microsoft.AspNetCore.OData.Common
             return default(T);
         }
 
-        /// <summary>
-        /// Returns type of T if the type implements IEnumerable of T, otherwise, return null.
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        internal static Type GetImplementedIEnumerableType(Type type)
-        {
-            if (type == null)
-            {
-                throw Error.ArgumentNull("type");
-            }
+        ///// <summary>
+        ///// Returns type of T if the type implements IEnumerable of T, otherwise, return null.
+        ///// </summary>
+        ///// <param name="type"></param>
+        ///// <returns></returns>
+        //internal static Type GetImplementedIEnumerableType(Type type)
+        //{
+        //    if (type == null)
+        //    {
+        //        throw Error.ArgumentNull("type");
+        //    }
 
-            foreach (var interfaceType in type.GetInterfaces().Concat(new[] { type }))
-            {
+        //    foreach (var interfaceType in type.GetInterfaces().Concat(new[] { type }))
+        //    {
 
-                var gt = interfaceType.GetGenericArguments();
+        //        var gt = interfaceType.GetGenericArguments();
 
-                if (gt.Count() == 1)
-                {
-                    return gt[0];
-                }
-            }
+        //        if (gt.Count() == 1)
+        //        {
+        //            return gt[0];
+        //        }
+        //    }
 
-            return null;
-        }
+        //    return null;
+        //}
 
         internal static IEnumerable<Type> GetLoadedTypes(IAssemblyProvider assemblyProvider)
         {

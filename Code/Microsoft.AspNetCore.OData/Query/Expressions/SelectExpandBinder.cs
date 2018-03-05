@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.OData.Common;
 using Microsoft.OData;
 using Microsoft.OData.UriParser;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Formatter;
 using Microsoft.AspNetCore.OData.Formatter.Serialization;
 

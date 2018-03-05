@@ -40,43 +40,6 @@ namespace Microsoft.AspNetCore.OData
             return elementType;
         }
 
-        public static bool IsCollection(this Type type)
-        {
-            Type elementType;
-            return type.IsCollection(out elementType);
-        }
-
-        public static bool IsCollection(this Type type, out Type elementType)
-        {
-            if (type == null)
-            {
-                throw Error.ArgumentNull("type");
-            }
-
-            elementType = type;
-
-            // see if this type should be ignored.
-            if (type == typeof(string))
-            {
-                return false;
-            }
-
-            Type collectionInterface
-                = type.GetInterfaces()
-                    .Union(new[] { type })
-                    .FirstOrDefault(
-                        t => t.GetTypeInfo().IsGenericType
-                             && t.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-
-            if (collectionInterface != null)
-            {
-                elementType = collectionInterface.GetGenericArguments().Single();
-                return true;
-            }
-
-            return false;
-        }
-
         public static Type GetUnderlyingTypeOrSelf(Type type)
         {
             return Nullable.GetUnderlyingType(type) ?? type;
@@ -159,6 +122,11 @@ namespace Microsoft.AspNetCore.OData
             return elementClrType;
         }
 
+        internal static void SayHi()
+        {
+
+        }
+
         /// <summary>
         /// Returns type of T if the type implements IEnumerable of T, otherwise, return null.
         /// </summary>
@@ -170,6 +138,11 @@ namespace Microsoft.AspNetCore.OData
             if (type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
             {
                 type = type.GetGenericArguments().First();
+            }
+
+            if (type == typeof(string))
+            {
+                return type;
             }
 
             if (type.GetTypeInfo().IsGenericType && type.GetTypeInfo().IsInterface &&

@@ -18,7 +18,8 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
         {
             var assemblyProvider = serviceProvider.GetService<IAssemblyProvider>();
             ODataModelBuilder modelBuilder;
-            var model = new ODataConfigurator<TService>(@namespace, assembly).Configure(assemblyProvider, serviceProvider, out modelBuilder);
+            var oDataConfigurator = new ODataConfigurator<TService>(@namespace, assembly);
+            var model = oDataConfigurator.Configure(assemblyProvider, serviceProvider, out modelBuilder);
             return new ODataConfigurationResult(model, modelBuilder);
         }
     }

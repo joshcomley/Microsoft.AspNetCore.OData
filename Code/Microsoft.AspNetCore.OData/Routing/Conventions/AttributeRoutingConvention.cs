@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.AspNetCore.OData.Common;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Routing.Template;
@@ -30,7 +31,7 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
 
         public AttributeRoutingConvention()
         {
-            
+
         }
 
         /// <summary>
@@ -124,7 +125,7 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                 {
                     foreach (var item in values)
                     {
-                        if(item.Key.StartsWith(ODataParameterValue.ParameterValuePrefix, StringComparison.Ordinal) &&
+                        if (item.Key.StartsWith(ODataParameterValue.ParameterValuePrefix, StringComparison.Ordinal) &&
                             item.Value is ODataParameterValue)
                         {
                             routingConventionsStore.Add(item);
@@ -182,16 +183,32 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
         {
             Contract.Assert(descriptor != null);
 
-            IEnumerable<ODataRouteAttribute> routeAttributes = descriptor.MethodInfo.GetCustomAttributes<ODataRouteAttribute>(inherit: false);
+            var routeAttributes = descriptor.MethodInfo.GetCustomAttributes<ODataRouteAttribute>(inherit: false);
+            var functionAttributes = descriptor.MethodInfo.GetCustomAttributes<ODataFunctionAttribute>(inherit: false);
+            var actionAttributes = descriptor.MethodInfo.GetCustomAttributes<ODataActionAttribute>(inherit: false);
+            var routePathTemplates = routeAttributes
+                .Select(route => GetODataPathTemplate(context, prefix, route.PathTemplate, descriptor, model));
+            var functionPathTemplates = functionAttributes
+                .Select(route => route.IsBound ? null : GetODataPathTemplate(context, prefix, "", descriptor, model));
+            var actionPathTemplates = actionAttributes
+                .Select(route => route.IsBound ? null : GetODataPathTemplate(context, prefix, "", descriptor, model));
             return
-                routeAttributes
-                .Select(route => GetODataPathTemplate(context, prefix, route.PathTemplate, descriptor, model))
-                .Where(template => template != null);
+                routePathTemplates
+                    .Concat(functionPathTemplates)
+                    .Concat(actionPathTemplates)
+                    .Where(template => template != null);
         }
 
         private ODataPathTemplate GetODataPathTemplate(RouteContext context, string prefix, string pathTemplate, ControllerActionDescriptor action, IEdmModel model)
         {
-            if (prefix != null && !pathTemplate.StartsWith("/", StringComparison.Ordinal))
+            if (string.IsNullOrEmpty(prefix))
+            {
+                var parametetrs = string.Join(
+                    ", ",
+                    action.Parameters.Select(p => $"{p.Name}={{{p.Name}}}"));
+                prefix = $"{action.ActionName}({parametetrs})";
+            }
+            if (!pathTemplate.StartsWith("/", StringComparison.Ordinal))
             {
                 if (String.IsNullOrEmpty(pathTemplate))
                 {
@@ -225,7 +242,7 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                 /*
                 throw Error.InvalidOperation(SRResources.InvalidODataRouteOnAction, pathTemplate, action.ActionName,
                     action.ControllerDescriptor.ControllerName, e.Message);*/
-                    // TODO: 
+                // TODO: 
                 return null;
             }
 

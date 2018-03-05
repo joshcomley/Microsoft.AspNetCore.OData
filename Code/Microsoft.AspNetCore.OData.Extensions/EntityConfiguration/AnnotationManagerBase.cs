@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Xml;
 using Iql.DotNet;
 using Iql.Queryable;
+using Iql.Queryable.Data.DataStores.InMemory.QueryApplicator;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Validation;
@@ -30,10 +31,23 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             IqlQueryableAdapter.ExpressionConverter = () => new DotNetExpressionConverter();
             IEnumerable<EdmError> errors;
             var assembly = typeof(ODataExtensionsEdmModelExtensions).GetTypeInfo().Assembly;
+            var assemblyName = assembly.GetName().Name;
             using (var stream = assembly.GetManifestResourceStream(
-                $"{assembly.GetName().Name}.Vocabularies.MeasuresVocabularies.xml"))
+                $"{assemblyName}.Vocabularies.MeasuresVocabularies.xml"))
             {
-                CsdlReader.TryParse(XmlReader.Create(stream), out Instance, out errors);
+                if (stream == null)
+                {
+                    assemblyName = assemblyName.Replace("Brandless", "Microsoft");
+                    using (var stream2 = assembly.GetManifestResourceStream(
+                        $"{assemblyName}.Vocabularies.MeasuresVocabularies.xml"))
+                    {
+                        CsdlReader.TryParse(XmlReader.Create(stream2), out Instance, out errors);
+                    }
+                }
+                else
+                {
+                    CsdlReader.TryParse(XmlReader.Create(stream), out Instance, out errors);
+                }
             }
             //ISOCurrencyTerm = Instance.FindDeclaredTerm(MeasuresISOCurrency);
             var configurationNs = "Iql";

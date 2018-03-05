@@ -3,6 +3,7 @@ using Microsoft.OData.Edm;
 using System;
 using System.Linq;
 using System.Reflection;
+using Microsoft.AspNetCore.OData.Extensions;
 
 namespace Microsoft.AspNetCore.OData
 {

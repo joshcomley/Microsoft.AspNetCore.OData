@@ -12,6 +12,8 @@ namespace Microsoft.AspNetCore.OData.Builder
     [AttributeUsage(AttributeTargets.Method)]
     public sealed class ODataActionAttribute : Attribute
     {
+        public Type ForCollection { get; set; }
+        public Type ForType { get; set; }
         public bool IsBound { get; set; }
         public string BindingName { get; set; }
     }

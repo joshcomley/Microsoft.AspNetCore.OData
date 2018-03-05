@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <AssemblyName>Microsoft.AspNetCore.OData.Extensions.local</AssemblyName>
+    <AssemblyName>Brandless.AspNetCore.OData.Extensions.local</AssemblyName>
     <RootNamespace>Microsoft.AspNetCore.OData.Extensions.local</RootNamespace>
   </PropertyGroup>
 
