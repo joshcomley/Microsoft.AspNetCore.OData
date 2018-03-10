@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
@@ -24,7 +26,7 @@ namespace Brandless.AspNetCore.OData.Extensions
         //    model.AddVocabularyAnnotation(annotation);
         //}
 
-        public static void SetEntityValidation<TEntity>(
+        public static EdmModel SetEntityValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, bool>> validationExpression,
             string message,
@@ -37,9 +39,10 @@ namespace Brandless.AspNetCore.OData.Extensions
                     validationExpression,
                     message,
                     key ?? Guid.NewGuid().ToString());
+            return model;
         }
 
-        public static void SetEntityDefaultDisplayTextFormatter<TEntity>(
+        public static EdmModel SetEntityDefaultDisplayTextFormatter<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, string>> formatterExpression)
         {
@@ -48,9 +51,10 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .AnnotationsManager
                 .AddDisplayTextFormatterAnnotation(
                     formatterExpression);
+            return model;
         }
 
-        public static void SetEntityDisplayTextFormatter<TEntity>(
+        public static EdmModel SetEntityDisplayTextFormatter<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, string>> formatterExpression,
             string key)
@@ -61,9 +65,21 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .AddDisplayTextFormatterAnnotation(
                     formatterExpression,
                     key);
+            return model;
         }
 
-        public static void SetEntityPropertyValidation<TEntity>(
+        public static EdmModel DefineReports<TEntity>(
+            this EdmModel model,
+            Action<ReportDefinitionMap<TEntity>> reportsMapper)
+        {
+            reportsMapper(
+                model.ModelConfiguration()
+                    .ForEntityType<TEntity>()
+                    .ReportDefinitions);
+            return model;
+        }
+
+        public static EdmModel SetEntityPropertyValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             Expression<Func<TEntity, bool>> validationExpression,
@@ -79,9 +95,10 @@ namespace Brandless.AspNetCore.OData.Extensions
                     key ?? Guid.NewGuid().ToString(),
                     propertyExpression
                     );
+            return model;
         }
 
-        public static void SetRegexValidation<TEntity>(
+        public static EdmModel SetRegexValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             string regex)
@@ -90,9 +107,10 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .ForEntityType<TEntity>()
                 .AnnotationsManager
                 .SetRegexValidation(propertyExpression, regex);
+            return model;
         }
 
-        public static void SetMaxLengthValidation<TEntity>(
+        public static EdmModel SetMaxLengthValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             int maxLength)
@@ -101,9 +119,10 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .ForEntityType<TEntity>()
                 .AnnotationsManager
                 .SetMaxLengthValidation(propertyExpression, maxLength);
+            return model;
         }
 
-        public static void SetMinLengthValidation<TEntity>(
+        public static EdmModel SetMinLengthValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             int minLength)
@@ -112,9 +131,10 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .ForEntityType<TEntity>()
                 .AnnotationsManager
                 .SetMinLengthValidation(propertyExpression, minLength);
+            return model;
         }
 
-        public static void SetRequiredValidation<TEntity>(
+        public static EdmModel SetRequiredValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             bool required)
@@ -123,6 +143,7 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .ForEntityType<TEntity>()
                 .AnnotationsManager
                 .SetRequiredAnnotation(propertyExpression, required);
+            return model;
         }
 
         internal static EdmVocabularyAnnotationSerializationLocation ToSerializationLocation(this IEdmVocabularyAnnotatable target)

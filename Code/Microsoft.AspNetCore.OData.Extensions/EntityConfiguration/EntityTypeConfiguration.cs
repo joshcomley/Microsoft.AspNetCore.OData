@@ -1,4 +1,5 @@
 ﻿using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Display;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Microsoft.OData.Edm;
 
@@ -9,6 +10,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         public EdmModel Model { get; }
         public EntityValidationMap<TEntity> ValidationMap { get; set; }
         internal AnnotationManager<TEntity> AnnotationsManager { get; }
+        public ReportDefinitionMap<TEntity> ReportDefinitions { get; }
         IEntityValidationMap IEntityTypeConfiguration.ValidationMap
         {
             get => ValidationMap;
@@ -27,6 +29,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             ValidationMap = new EntityValidationMap<TEntity>();
             DisplayTextFormatterMap = new EntityDisplayTextFormatterMap<TEntity>();
             AnnotationsManager = new AnnotationManager<TEntity>(model);
+            ReportDefinitions = new ReportDefinitionMap<TEntity>();
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Brandless.AspNetCore.OData.Extensions.Extensions
 {
     public static class LambdaExtensions
     {
-        public static PropertyInfo GetAccessedProperty<T>(this Expression<Func<T, object>> expression)
+        public static PropertyInfo GetAccessedProperty(this LambdaExpression expression)
         {
             Contract.Assert(expression != null);
 
@@ -20,8 +20,8 @@ namespace Brandless.AspNetCore.OData.Extensions.Extensions
             if (propertyInfo == null)
             {
                 throw new ArgumentException("Member expression must be a property.");
-                    //Error.InvalidOperation(SRResources.MemberExpressionsMustBeProperties,
-                    //memberNode.Member.DeclaringType.FullName, memberNode.Member.Name);
+                //Error.InvalidOperation(SRResources.MemberExpressionsMustBeProperties,
+                //memberNode.Member.DeclaringType.FullName, memberNode.Member.Name);
             }
 
             // Ensure we get the top-most version of this PropertyInfo
