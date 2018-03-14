@@ -34,8 +34,8 @@ namespace Microsoft.AspNetCore.OData
                     EntityTypeConfiguration entityType = null;
 
                     if (entityClrType.GetTypeInfo().IsPrimitive
-                               || entityClrType.GetType() == typeof(decimal)
-                               || entityClrType.GetType() == typeof(string))
+                               || entityClrType == typeof(decimal)
+                               || entityClrType == typeof(string))
                     {
                         primitiveEntityType = builder.AddPrimitiveType(entityClrType);
                     }

@@ -4,9 +4,12 @@
     {
         String,
         Number,
+        Date,
         Currency,
         Percentage,
         PercentageBar,
-        EmailAddress
+        EmailAddress,
+        ImageLink,
+        Collection
     }
 }

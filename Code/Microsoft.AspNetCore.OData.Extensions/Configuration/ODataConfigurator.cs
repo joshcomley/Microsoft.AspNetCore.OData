@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Brandless.AspNetCore.OData.Extensions.Extensions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.AspNetCore.OData.Extensions;
@@ -71,7 +73,7 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                         bindingName = actionAttribute.BindingName ?? "key";
                     }
 
-                    configuration = (OperationConfiguration) MethodTypedInfo.MakeGenericMethod(
+                    configuration = (OperationConfiguration)MethodTypedInfo.MakeGenericMethod(
                             actionAttribute.ForType ?? actionAttribute.ForCollection)
                         .Invoke(
                             null,
@@ -121,18 +123,6 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             }
 
             return configuration;
-        }
-
-        private static IEdmTypeConfiguration GetEdmType(Type clrType, ODataModelBuilder builder)
-        {
-            if (clrType.IsPrimitive
-                || clrType == typeof(decimal)
-                || clrType == typeof(string))
-            {
-                return builder.AddPrimitiveType(clrType);
-            }
-
-            return builder.AddEntityType(clrType);
         }
     }
     public class ODataConfigurator<TService>
@@ -219,42 +209,46 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                                     continue;
                                 }
 
+
                                 var entityClrType = TypeHelper.GetImplementedIEnumerableType(method.ReturnType) ??
                                                     method.ReturnType;
+                                entityClrType = entityClrType.UnwrapTask();
                                 PrimitiveTypeConfiguration primitiveEntityType = null;
                                 EntityTypeConfiguration entityType = null;
-
-                                var clrType = entityClrType;
-                                if (clrType.IsPrimitive
-                                    || clrType == typeof(decimal)
-                                    || clrType == typeof(string))
+                                var isActionResult = typeof(IActionResult).IsAssignableFrom(entityClrType);
+                                if (!isActionResult)
                                 {
-                                    primitiveEntityType = builder.AddPrimitiveType(clrType);
-                                }
-                                else
-                                {
-                                    entityType = builder.AddEntityType(clrType);
+                                    if (entityClrType.IsPrimitiveType())
+                                    {
+                                        primitiveEntityType = builder.AddPrimitiveType(entityClrType);
+                                    }
+                                    else
+                                    {
+                                        entityType = builder.AddEntityType(entityClrType);
+                                    }
                                 }
 
-                                var configuration = 
+                                var configuration =
                                     ODataMethodBuilder.BuildMethod(
-                                        method, 
-                                        builder, 
-                                        functionAttribute, 
+                                        method,
+                                        builder,
+                                        functionAttribute,
                                         actionAttribute,
                                         out var bindingName);
 
                                 if (configuration != null)
                                 {
-                                    if (primitiveEntityType == null)
+                                    if (!isActionResult)
                                     {
-                                        configuration.ReturnType = entityType;
+                                        if (primitiveEntityType == null)
+                                        {
+                                            configuration.ReturnType = entityType;
+                                        }
+                                        else
+                                        {
+                                            configuration.ReturnType = primitiveEntityType;
+                                        }
                                     }
-                                    else
-                                    {
-                                        configuration.ReturnType = primitiveEntityType;
-                                    }
-
                                     configuration.IsComposable = true;
                                     configuration.NavigationSource =
                                         builder.NavigationSources.FirstOrDefault(n => n.EntityType == entityType);
@@ -266,42 +260,28 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                                         {
                                             continue;
                                         }
-                                        if (parameterInfo.ParameterType.GetTypeInfo().IsPrimitive
-                                            || parameterInfo.ParameterType == typeof(decimal)
-                                            || parameterInfo.ParameterType == typeof(string))
+
+                                        if (actionAttribute != null)
                                         {
-                                            var primitiveType = builder.AddPrimitiveType(parameterInfo.ParameterType);
-                                            configuration.AddParameter(parameterInfo.Name, primitiveType);
-                                        }
-                                        else
-                                        {
-                                            if (parameterInfo.ParameterType.IsCollection())
+                                            if (parameterInfo.GetCustomAttributes(typeof(FromBodyAttribute)) != null)
                                             {
-                                                if (parameterInfo.ParameterType.GenericTypeArguments[0].GetTypeInfo()
-                                                    .IsPrimitive)
+                                                if (parameterInfo.ParameterType.IsPrimitiveType())
                                                 {
-                                                    var parameterType = builder.AddPrimitiveType(
-                                                        parameterInfo.ParameterType.GenericTypeArguments[0]);
-                                                    var collectionTypeConfig = new CollectionTypeConfiguration(
-                                                        parameterType,
-                                                        parameterInfo.ParameterType.GenericTypeArguments[0]);
-                                                    configuration.AddParameter(parameterInfo.Name, collectionTypeConfig);
+                                                    AddParameter(builder, configuration, parameterInfo.ParameterType, parameterInfo.Name);
                                                 }
                                                 else
                                                 {
-                                                    var parameterType = builder.AddEntityType(
-                                                        parameterInfo.ParameterType.GenericTypeArguments[0]);
-                                                    var collectionTypeConfig = new CollectionTypeConfiguration(
-                                                        parameterType,
-                                                        parameterInfo.ParameterType.GenericTypeArguments[0]);
-                                                    configuration.AddParameter(parameterInfo.Name, collectionTypeConfig);
+                                                    foreach (var property in parameterInfo.ParameterType
+                                                        .GetProperties())
+                                                    {
+                                                        AddParameter(builder, configuration, property.PropertyType, property.Name);
+                                                    }
                                                 }
                                             }
-                                            else
-                                            {
-                                                var parameterType = builder.AddEntityType(parameterInfo.ParameterType);
-                                                configuration.AddParameter(parameterInfo.Name, parameterType);
-                                            }
+                                        }
+                                        else
+                                        {
+                                            AddParameter(builder, configuration, parameterInfo.ParameterType, parameterInfo.Name);
                                         }
                                     }
                                 }
@@ -309,6 +289,49 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                             catch (FileLoadException) { }
                         }
                     }
+                }
+            }
+        }
+
+        private static void AddParameter(
+            ODataConventionModelBuilder builder, 
+            OperationConfiguration configuration,
+            Type pType, 
+            string name)
+        {
+            if (pType.IsPrimitiveType())
+            {
+                var primitiveType = builder.AddPrimitiveType(pType);
+                configuration.AddParameter(name, primitiveType);
+            }
+            else
+            {
+                if (pType.IsCollection())
+                {
+                    if (pType.GenericTypeArguments[0].GetTypeInfo()
+                        .IsPrimitive)
+                    {
+                        var parameterType = builder.AddPrimitiveType(
+                            pType.GenericTypeArguments[0]);
+                        var collectionTypeConfig = new CollectionTypeConfiguration(
+                            parameterType,
+                            pType.GenericTypeArguments[0]);
+                        configuration.AddParameter(name, collectionTypeConfig);
+                    }
+                    else
+                    {
+                        var parameterType = builder.AddEntityType(
+                            pType.GenericTypeArguments[0]);
+                        var collectionTypeConfig = new CollectionTypeConfiguration(
+                            parameterType,
+                            pType.GenericTypeArguments[0]);
+                        configuration.AddParameter(name, collectionTypeConfig);
+                    }
+                }
+                else
+                {
+                    var parameterType = builder.AddEntityType(pType);
+                    configuration.AddParameter(name, parameterType);
                 }
             }
         }

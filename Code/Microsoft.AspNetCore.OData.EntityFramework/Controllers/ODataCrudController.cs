@@ -335,8 +335,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
             var entity = Crud.Secured.Find(keys.Cast<object>().ToArray());
-            var currentEntity = await FindAsync(entity);
-            return await Patch(keys, ResolveJObject(), currentEntity);
+            if (entity == null)
+            {
+                return NotFound();
+            }
+            return await Patch(keys, ResolveJObject(), entity);
         }
 
         protected virtual JObject ResolveJObject()
@@ -345,12 +348,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 ? new JObject()
                 : JObject.Parse(PostedJson);
         }
-
-        protected virtual Task<T> FindAsync(T entity)
-        {
-            return Task.FromResult(entity);
-        }
-
+        
         protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] key, JObject value, T currentDatabaseEntity)
         {
             await OnValidate(PostedEntity, value);

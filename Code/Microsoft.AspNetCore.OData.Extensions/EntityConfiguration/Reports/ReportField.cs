@@ -80,7 +80,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports
             set
             {
                 _link = value;
-                _baseLink = _ => Link((TEntity) _);
+                _baseLink = value == null ? (Func<object, string>)null : _ => value((TEntity)_);
             }
         }
 

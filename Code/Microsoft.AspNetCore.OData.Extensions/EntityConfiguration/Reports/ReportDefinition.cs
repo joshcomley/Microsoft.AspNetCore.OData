@@ -31,6 +31,35 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports
             return this;
         }
 
+        public ReportDefinition<TEntity> AddCollectionField<TCollectionElement>(
+            Expression<Func<TEntity, IEnumerable<TCollectionElement>>> property,
+            Expression<Func<TCollectionElement, object>> formatter,
+            Expression<Func<TCollectionElement, object>> noValueFormatter = null,
+            Expression<Func<TCollectionElement, object>> commentFormatter = null,
+            ReportFieldKind kind = ReportFieldKind.String,
+            ReportFieldStyle style = ReportFieldStyle.Normal,
+            Func<TCollectionElement, string> link = null,
+            string title = null,
+            string key = null,
+            Action<ReportCollectionField<TEntity, TCollectionElement>> configure = null)
+        {
+            var reportCollectionField = new ReportCollectionField<TEntity, TCollectionElement>(
+                property,
+                title, 
+                null, 
+                null, 
+                null, 
+                ReportFieldKind.Collection, 
+                ReportFieldStyle.Normal, 
+                null, 
+                key);
+            reportCollectionField.CollectionField = 
+                new ReportField<TCollectionElement>(title, formatter, noValueFormatter, commentFormatter, kind, style, link, key);
+            configure?.Invoke(reportCollectionField);
+            _fields.Add(reportCollectionField);
+            return this;
+        }
+
         public ReportDefinition<TEntity> AddField<TProperty>(
             Expression<Func<TEntity, TProperty>> property,
             string title = null,

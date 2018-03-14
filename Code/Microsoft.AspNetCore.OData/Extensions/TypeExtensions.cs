@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.OData.Common;
 
 namespace Microsoft.AspNetCore.OData.Extensions
@@ -29,6 +30,19 @@ namespace Microsoft.AspNetCore.OData.Extensions
                 // reference types are always nullable
                 return true;
             }
+        }
+
+        public static Type UnwrapTask(this Type type)
+        {
+            if (type.IsGenericType)
+            {
+                var definition = type.GetGenericTypeDefinition();
+                if (definition == typeof(Task<>))
+                {
+                    return type.GetGenericArguments()[0];
+                }
+            }
+            return type;
         }
 
         public static Type ToNullable(this Type t)
