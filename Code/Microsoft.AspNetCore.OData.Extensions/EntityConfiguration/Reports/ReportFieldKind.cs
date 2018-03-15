@@ -10,6 +10,7 @@
         PercentageBar,
         EmailAddress,
         ImageLink,
-        Collection
+        Collection,
+        Auto
     }
 }

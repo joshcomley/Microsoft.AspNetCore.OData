@@ -98,7 +98,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports
             Expression<Func<TEntity, object>> formatter,
             Expression<Func<TEntity, object>> noValueFormatter = null,
             Expression<Func<TEntity, object>> commentFormatter = null,
-            ReportFieldKind kind = ReportFieldKind.String,
+            ReportFieldKind kind = ReportFieldKind.Auto,
             ReportFieldStyle style = ReportFieldStyle.Normal,
             Func<TEntity, string> link = null,
             string key = null)
