@@ -100,32 +100,27 @@ namespace Brandless.AspNetCore.OData.Extensions
             return model;
         }
 
-        public static EdmModel SetEntityPropertyMetadata<TEntity>(
+        public static EntityMetadataConfigurator Entity<TEntity>(
             this EdmModel model,
-            Expression<Func<TEntity, object>> propertyExpression,
-            Func<IPropertyMetadata, IPropertyMetadata> metadataExpression)
+            Action<IEntityMetadata> metadataExpression = null)
         {
-            model.ModelConfiguration()
+            var propertyMetadata = model.ModelConfiguration()
                 .ForEntityType<TEntity>()
-                .AnnotationsManager
-                .SetMetadataAnnotation(
-                    metadataExpression,
-                    propertyExpression
-                );
-            return model;
+                .Metadata;
+            metadataExpression?.Invoke(propertyMetadata);
+            return new EntityMetadataConfigurator(propertyMetadata);
         }
 
-        public static EdmModel SetEntityMetadata<TEntity>(
+        public static PropertyMetadataConfigurator Property<TEntity>(
             this EdmModel model,
-            Func<IEntityMetadata, IEntityMetadata> metadataExpression)
-        {
-            model.ModelConfiguration()
+            Expression<Func<TEntity, object>> propertyExpression,
+            Action<IPropertyMetadata> metadataExpression = null)
+        {            
+            var propertyMetadata = model.ModelConfiguration()
                 .ForEntityType<TEntity>()
-                .AnnotationsManager
-                .SetMetadataAnnotation(
-                    metadataExpression
-                );
-            return model;
+                .PropertyMetadata(propertyExpression);
+            metadataExpression?.Invoke(propertyMetadata);
+            return new PropertyMetadataConfigurator(propertyMetadata);
         }
 
         public static EdmModel SetRegexValidation<TEntity>(

@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
+using Iql.Queryable.Data.EntityConfiguration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
@@ -178,8 +180,33 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             {
                 modelConfigurator(model);
             }
+
+            var configurations = ModelConfiguration.ForModel(model).All();
+            foreach (var configuration in configurations)
+            {
+                ApplyConfiguratiton(model, configuration);
+            }
+
             modelBuilder = builder;
             return model;
+        }
+
+        private static void ApplyConfiguratiton(EdmModel model, IEntityTypeConfiguration configuration)
+        {
+            var entityTypeConfigurationBase = configuration as EntityTypeConfigurationBase;
+            entityTypeConfigurationBase.AnnotationsManagerBase
+                .SetMetadataAnnotation(
+                    configuration.Metadata
+                );
+
+            foreach (var propertyMetadata in configuration.PropertyMetadatas)
+            {
+                entityTypeConfigurationBase.AnnotationsManagerBase
+                    .SetMetadataAnnotation(
+                        propertyMetadata.Value,
+                        propertyMetadata.Key
+                    );
+            }
         }
 
         private static void ApplyAttributes(IAssemblyProvider assemblyProvider, ODataConventionModelBuilder builder)

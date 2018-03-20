@@ -194,8 +194,16 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             return edmEnumType;
         }
 
+        public override void SetMetadataAnnotation(
+            IMetadata metadata = null, string property = null)
+        {
+            SetMetadataAnnotationInternal(
+                metadata,
+                property);
+        }
+
         public void SetMetadataAnnotation<T>(
-            Func<T, T> metadataExpression,
+            T metadata = null,
             Expression<Func<TEntity, object>> propertyExpression = null)
         where T : class, IMetadata
         {
@@ -206,14 +214,17 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 propertyName = propertyExpression.GetAccessedProperty().Name;
             }
 
+            SetMetadataAnnotationInternal(metadata, propertyName);
+        }
+
+        private void SetMetadataAnnotationInternal<T>(T metadata, string propertyName) where T : class, IMetadata
+        {
             //var container2 = new EdmLabeledExpression("Metadata", new EdmStringConstant("Heyyy"));
 
             //var config2 = GetConfigurationAnnotation(propertyName);
             //config2.MetadataAnnotation = container2;
             //return;
 
-            var metadata = typeof(IEntityMetadata).IsAssignableFrom(typeof(T)) ? new EntityMetadata() as T : new PropertyMetadata() as T;
-            metadata = metadataExpression(metadata);
             if (metadata != null)
             {
                 var expressions = new List<IEdmExpression>();

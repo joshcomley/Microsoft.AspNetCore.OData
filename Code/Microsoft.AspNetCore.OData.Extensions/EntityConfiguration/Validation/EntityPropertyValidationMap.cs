@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Iql.Queryable.Data.EntityConfiguration;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
 {

@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Xml;
 using Iql.DotNet;
 using Iql.Queryable;
 using Iql.Queryable.Data.DataStores.InMemory.QueryApplicator;
+using Iql.Queryable.Data.EntityConfiguration;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Validation;
@@ -14,7 +16,7 @@ using IEdmTerm = Microsoft.OData.Edm.Vocabularies.IEdmTerm;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 {
-    internal class AnnotationManagerBase
+    internal abstract class AnnotationManagerBase
     {
         public static readonly IEdmModel Instance;
         public static readonly IEdmTerm ValidationTerm;
@@ -87,5 +89,9 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         {
             public const string Property = "Property";
         }
+
+        public abstract void SetMetadataAnnotation(
+            IMetadata metadata = null,
+            string property = null);
     }
 }

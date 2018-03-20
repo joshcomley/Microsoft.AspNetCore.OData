@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.OData.Edm;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
@@ -7,13 +8,13 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
     public class ModelConfiguration
     {
         public EdmModel Model { get; }
-        private static readonly Dictionary<EdmModel, ModelConfiguration> _modelConfigurationMap = new Dictionary<EdmModel, ModelConfiguration>();
+        private static readonly Dictionary<EdmModel, ModelConfiguration> ModelConfigurationMap = new Dictionary<EdmModel, ModelConfiguration>();
 
         private readonly Dictionary<Type, IEntityTypeConfiguration> _entityTypeConfigurationMap = new Dictionary<Type, IEntityTypeConfiguration>();
 
         public static EntityTypeConfiguration<T> ForType<T>()
         {
-            foreach (var map in _modelConfigurationMap.Values)
+            foreach (var map in ModelConfigurationMap.Values)
             {
                 if (map._entityTypeConfigurationMap.ContainsKey(typeof(T)))
                 {
@@ -23,13 +24,18 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             return null;
         }
 
+        public IEnumerable<IEntityTypeConfiguration> All()
+        {
+            return _entityTypeConfigurationMap.Select(m => m.Value);
+        }
+
         public static ModelConfiguration ForModel(EdmModel model)
         {
-            if (!_modelConfigurationMap.ContainsKey(model))
+            if (!ModelConfigurationMap.ContainsKey(model))
             {
-                _modelConfigurationMap.Add(model, new ModelConfiguration(model));
+                ModelConfigurationMap.Add(model, new ModelConfiguration(model));
             }
-            return _modelConfigurationMap[model];
+            return ModelConfigurationMap[model];
         }
         private ModelConfiguration(EdmModel model)
         {
