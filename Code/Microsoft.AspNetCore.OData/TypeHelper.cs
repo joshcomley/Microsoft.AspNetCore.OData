@@ -70,7 +70,7 @@ namespace Microsoft.AspNetCore.OData
         /// </summary>
         /// <param name="type">The type</param>
         /// <returns><c>true</c> if the type is a primitive type.</returns>
-        internal static bool IsQueryPrimitiveType(Type type)
+        internal static bool IsQueryPrimitiveType(this Type type)
         {
             Contract.Assert(type != null);
 

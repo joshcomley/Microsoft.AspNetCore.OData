@@ -33,9 +33,7 @@ namespace Microsoft.AspNetCore.OData
                     PrimitiveTypeConfiguration primitiveEntityType = null;
                     EntityTypeConfiguration entityType = null;
 
-                    if (entityClrType.GetTypeInfo().IsPrimitive
-                               || entityClrType.GetType() == typeof(decimal)
-                               || entityClrType.GetType() == typeof(string))
+                    if (entityClrType.IsQueryPrimitiveType())
                     {
                         primitiveEntityType = builder.AddPrimitiveType(entityClrType);
                     }
@@ -81,16 +79,13 @@ namespace Microsoft.AspNetCore.OData
 
                         foreach (var parameterInfo in method.GetParameters())
                         {
-                            if (parameterInfo.ParameterType.GetTypeInfo().IsPrimitive
-                                || parameterInfo.ParameterType == typeof(decimal)
-                                || parameterInfo.ParameterType == typeof(string))
+                            if (parameterInfo.ParameterType.IsQueryPrimitiveType())
                             {
                                 var primitiveType = builder.AddPrimitiveType(parameterInfo.ParameterType);
                                 configuration.AddParameter(parameterInfo.Name, primitiveType);
                             }
                             else
                             {
-
                                 if (parameterInfo.ParameterType.IsCollection())
                                 {
                                     if (parameterInfo.ParameterType.GenericTypeArguments[0].GetTypeInfo().IsPrimitive)
