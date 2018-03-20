@@ -34,7 +34,7 @@ namespace Microsoft.AspNetCore.OData
                     EntityTypeConfiguration entityType = null;
 
                     if (entityClrType.IsQueryPrimitiveType())
-s                    {
+                    {
                         primitiveEntityType = builder.AddPrimitiveType(entityClrType);
                     }
                     else
