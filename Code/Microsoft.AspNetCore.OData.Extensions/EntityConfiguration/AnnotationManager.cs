@@ -1,70 +1,24 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Display;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Iql.DotNet.Serialization;
+using Iql.Queryable.Data.EntityConfiguration;
 using Microsoft.AspNetCore.OData.Extensions;
+using Microsoft.AspNetCore.OData.Formatter;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Vocabularies;
+using EdmModelExtensions = Microsoft.AspNetCore.OData.Extensions.EdmModelExtensions;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 {
-    internal class CollectionAnnotation<TEntity>
-    {
-        private bool _initialized;
-        public string Key { get; }
-        public ConfigurationAnnotation<TEntity> Root { get; }
-        private List<IEdmExpression> ChildExpressions { get; } = new List<IEdmExpression>();
-        public EdmModel Model { get; }
-
-        public CollectionAnnotation(string key, ConfigurationAnnotation<TEntity> root, EdmModel model)
-        {
-            Key = key;
-            Root = root;
-            Model = model;
-        }
-
-        public void Add(IEdmExpression expression)
-        {
-            if (!_initialized)
-            {
-                _initialized = true;
-                var entityValidationRoot = new EdmLabeledExpression(Key,
-                    new EdmCollectionExpression(ChildExpressions));
-                Root.ChildExpressions.Add(entityValidationRoot);
-            }
-            ChildExpressions.Add(expression);
-        }
-    }
-    internal class ConfigurationAnnotation<TEntity>
-    {
-        public EdmModel Model { get; }
-        public List<IEdmExpression> ChildExpressions { get; } = new List<IEdmExpression>();
-        public CollectionAnnotation<TEntity> ValidationAnnotation { get; }
-        public ConfigurationAnnotation(EdmModel model, string propertyName = null)
-        {
-            Model = model;
-            var type = Model.GetEdmType(typeof(TEntity)) as EdmEntityType;
-            IEdmVocabularyAnnotatable target = type;
-            if (propertyName != null)
-            {
-                target = type.Properties().Single(p => p.Name == propertyName);
-            }
-            var coll = new EdmCollectionExpression(ChildExpressions);
-            var annotation = new EdmVocabularyAnnotation(target, AnnotationManagerBase.IqlConfigurationTerm, coll);
-            annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
-            Model.AddVocabularyAnnotation(annotation);
-
-            ValidationAnnotation = new CollectionAnnotation<TEntity>("Validations", this, model);
-            DisplayFormattingAnnotation = new CollectionAnnotation<TEntity>("DisplayFormatters", this, model);
-        }
-
-        public CollectionAnnotation<TEntity> DisplayFormattingAnnotation { get; set; }
-    }
     internal class AnnotationManager<TEntity> : AnnotationManagerBase
     {
         private ConfigurationAnnotation<TEntity> EntityConfigurationAnnotation { get; }
@@ -160,6 +114,141 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 validationObject, propertyName);
         }
 
+        private IEdmExpression GetExpression(object obj)
+        {
+            if (obj == null)
+            {
+                return null;
+            }
+            IEdmExpression expression = null;
+            var objectType = obj.GetType();
+            if (objectType == typeof(string))
+            {
+                expression = new EdmStringConstant(obj as string);
+            }
+            else if (objectType == typeof(bool) && (bool)obj)
+            {
+                expression = new EdmBooleanConstant((bool)obj);
+            }
+            else if (objectType.IsEnum)
+            {
+                //var t = EdmLibHelpers.GetEdmType(Model, objectType);
+                if (EnumExtensions.IsValidEnumValue(obj))
+                {
+                    expression = new EdmStringConstant(obj.ToString());
+                }
+                //var edmEnumType = EnsureEdmType(objectType);
+                //expression = new EdmEnumMemberExpression(
+                //    new EdmEnumMember(
+                //        edmEnumType,
+                //        obj.ToString(),
+                //        new EdmEnumMemberValue((int)obj)
+                //        ));
+            }
+            else if (objectType.IsCollection())
+            {
+                var enumerable = obj as IEnumerable;
+                if (enumerable != null)
+                {
+                    var arr = new List<IEdmExpression>();
+                    foreach (var value in enumerable)
+                    {
+                        var edmExpression = GetExpression(value);
+                        if (edmExpression != null)
+                        {
+                            arr.Add(edmExpression);
+                        }
+                    }
+
+                    if (arr.Any())
+                    {
+                        var collectionExpression = new EdmCollectionExpression(arr);
+                        expression = collectionExpression;
+                    }
+                }
+            }
+
+            return expression;
+        }
+
+        private IEdmEnumType EnsureEdmType(Type objectType)
+        {
+            var edmEnumType = (IEdmEnumType)EdmModelExtensions.GetEdmType(Model, objectType);
+            if (edmEnumType == null)
+            {
+                var propertyType = new EdmEnumType(objectType.Namespace, objectType.Name, false);
+                Model.AddElement(propertyType);
+                var names = Enum.GetNames(objectType);
+                var values = Enum.GetValues(objectType).Cast<int>().ToArray();
+                for (var i = 0; i < names.Length; i++)
+                {
+                    var name = names[i];
+                    var value = values[i];
+                    propertyType.AddMember(name, new EdmEnumMemberValue(value));
+                }
+
+                edmEnumType = (IEdmEnumType)EdmModelExtensions.GetEdmType(Model, objectType);
+                //t = Microsoft.AspNetCore.OData.Formatter.EdmLibHelpers.GetEdmType(Model, objectType);
+            }
+
+            return edmEnumType;
+        }
+
+        public void SetMetadataAnnotation<T>(
+            Func<T, T> metadataExpression,
+            Expression<Func<TEntity, object>> propertyExpression = null)
+        where T : class, IMetadata
+        {
+            string propertyName = null;
+
+            if (propertyExpression != null)
+            {
+                propertyName = propertyExpression.GetAccessedProperty().Name;
+            }
+
+            //var container2 = new EdmLabeledExpression("Metadata", new EdmStringConstant("Heyyy"));
+
+            //var config2 = GetConfigurationAnnotation(propertyName);
+            //config2.MetadataAnnotation = container2;
+            //return;
+
+            var metadata = typeof(IEntityMetadata).IsAssignableFrom(typeof(T)) ? new EntityMetadata() as T : new PropertyMetadata() as T;
+            metadata = metadataExpression(metadata);
+            if (metadata != null)
+            {
+                var expressions = new List<IEdmExpression>();
+                var type = metadata.GetType();
+                var runtimeProperties = type.GetTypeInfo().GetRuntimeProperties();
+                foreach (var property in runtimeProperties)
+                {
+                    var edmExpression = GetExpression(property.GetValue(metadata));
+                    if (edmExpression != null)
+                    {
+                        var label = new EdmLabeledExpression(property.Name, edmExpression);
+                        expressions.Add(label);
+                    }
+                }
+
+                if (expressions.Any())
+                {
+                    var coll = new EdmCollectionExpression(expressions);
+                    var container = new EdmLabeledExpression("Metadata", coll);
+
+                    //EntityConfigurationExpressions.Add(container);
+                    //var annotation = new EdmVocabularyAnnotation(target, ValidationTerm, coll);
+                    //annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
+                    //Model.AddVocabularyAnnotation(annotation);
+
+                    //var modelConfiguration = Model.ModelConfiguration();
+
+                    //modelConfiguration.ForEntityType<TEntity>().Metadata = metadata;
+
+                    var config = GetConfigurationAnnotation(propertyName);
+                    config.MetadataAnnotation = container;
+                }
+            }
+        }
+
         public ConfigurationAnnotation<TEntity> GetConfigurationAnnotation(string propertyName = null)
         {
             if (propertyName == null)
@@ -238,7 +327,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         private void SetSimpleAnnotation(Expression<Func<TEntity, object>> propertyExpression,
             IEdmExpression expression, IEdmTerm term)
         {
-            var type = Model.GetEdmType(typeof(TEntity)) as EdmEntityType;
+            var type = EdmModelExtensions.GetEdmType(Model, typeof(TEntity)) as EdmEntityType;
             IEdmVocabularyAnnotatable target = type;
             if (propertyExpression != null)
             {

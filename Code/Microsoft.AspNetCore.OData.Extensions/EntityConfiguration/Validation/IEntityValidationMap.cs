@@ -1,4 +1,6 @@
-﻿namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
+﻿using System;
+
+namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
 {
     public interface IEntityValidationMap
     {
