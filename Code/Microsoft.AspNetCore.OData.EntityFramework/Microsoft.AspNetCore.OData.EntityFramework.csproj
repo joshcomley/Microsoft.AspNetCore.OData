@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFrameworks>netcoreapp2.0;netstandard2.0</TargetFrameworks>
     <AssemblyName>Brandless.AspNetCore.OData.EntityFramework</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Brandless" Version="0.0.1" />
-    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40015-10009" />
+    <PackageReference Include="Brandless" Version="0.0.10" />
+    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10010" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.4" />
   </ItemGroup>

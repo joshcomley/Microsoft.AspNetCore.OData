@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Linq.Expressions;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
+using Iql.Queryable.Data.EntityConfiguration;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
 using IEdmEntityContainer = Microsoft.OData.Edm.IEdmEntityContainer;
@@ -26,7 +28,7 @@ namespace Brandless.AspNetCore.OData.Extensions
         //    model.AddVocabularyAnnotation(annotation);
         //}
 
-        public static EdmModel SetEntityValidation<TEntity>(
+        public static EdmModel AddEntityValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, bool>> validationExpression,
             string message,
@@ -79,7 +81,7 @@ namespace Brandless.AspNetCore.OData.Extensions
             return model;
         }
 
-        public static EdmModel SetEntityPropertyValidation<TEntity>(
+        public static EdmModel AddEntityPropertyValidation<TEntity>(
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             Expression<Func<TEntity, bool>> validationExpression,
@@ -94,7 +96,35 @@ namespace Brandless.AspNetCore.OData.Extensions
                     message,
                     key ?? Guid.NewGuid().ToString(),
                     propertyExpression
-                    );
+                );
+            return model;
+        }
+
+        public static EdmModel SetEntityPropertyMetadata<TEntity>(
+            this EdmModel model,
+            Expression<Func<TEntity, object>> propertyExpression,
+            Func<IPropertyMetadata, IPropertyMetadata> metadataExpression)
+        {
+            model.ModelConfiguration()
+                .ForEntityType<TEntity>()
+                .AnnotationsManager
+                .SetMetadataAnnotation(
+                    metadataExpression,
+                    propertyExpression
+                );
+            return model;
+        }
+
+        public static EdmModel SetEntityMetadata<TEntity>(
+            this EdmModel model,
+            Func<IEntityMetadata, IEntityMetadata> metadataExpression)
+        {
+            model.ModelConfiguration()
+                .ForEntityType<TEntity>()
+                .AnnotationsManager
+                .SetMetadataAnnotation(
+                    metadataExpression
+                );
             return model;
         }
 

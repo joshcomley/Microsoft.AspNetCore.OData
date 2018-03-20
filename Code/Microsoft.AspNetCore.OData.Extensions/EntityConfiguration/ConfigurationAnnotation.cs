@@ -9,9 +9,8 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 {
     internal class ConfigurationAnnotation<TEntity>
     {
-        public EdmModel Model { get; }
-        public List<IEdmExpression> ChildExpressions { get; } = new List<IEdmExpression>();
-        public CollectionAnnotation<TEntity> ValidationAnnotation { get; }
+        private EdmLabeledExpression _metadataAnnotation;
+
         public ConfigurationAnnotation(EdmModel model, string propertyName = null)
         {
             Model = model;
@@ -21,6 +20,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             {
                 target = type.Properties().Single(p => p.Name == propertyName);
             }
+
             var coll = new EdmCollectionExpression(ChildExpressions);
             var annotation = new EdmVocabularyAnnotation(target, AnnotationManagerBase.IqlConfigurationTerm, coll);
             annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
@@ -28,6 +28,28 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 
             ValidationAnnotation = new CollectionAnnotation<TEntity>("Validations", this, model);
             DisplayFormattingAnnotation = new CollectionAnnotation<TEntity>("DisplayFormatters", this, model);
+        }
+
+        public EdmModel Model { get; }
+        public List<EdmLabeledExpression> ChildExpressions { get; } = new List<EdmLabeledExpression>();
+        public CollectionAnnotation<TEntity> ValidationAnnotation { get; }
+
+        public EdmLabeledExpression MetadataAnnotation
+        {
+            get => _metadataAnnotation;
+            set
+            {
+                if (_metadataAnnotation != null && ChildExpressions.Contains(_metadataAnnotation))
+                {
+                    ChildExpressions.Remove(_metadataAnnotation);
+                }
+
+                if (value != null)
+                {
+                    ChildExpressions.Add(value);
+                }
+                _metadataAnnotation = value;
+            }
         }
 
         public CollectionAnnotation<TEntity> DisplayFormattingAnnotation { get; set; }
