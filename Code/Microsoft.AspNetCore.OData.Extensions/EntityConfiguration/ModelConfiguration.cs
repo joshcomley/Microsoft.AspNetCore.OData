@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Microsoft.OData.Edm;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
@@ -42,13 +43,28 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             Model = model;
         }
 
+        static ModelConfiguration()
+        {
+            ForEntityTypeGenericMethod = typeof(ModelConfiguration)
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Single(m => m.Name == nameof(ForEntityType) && m.GetGenericArguments().Length > 0);
+        }
+
+        public static MethodInfo ForEntityTypeGenericMethod { get; set; }
+
         public EntityTypeConfiguration<TEntity> ForEntityType<TEntity>()
         {
-            if (!_entityTypeConfigurationMap.ContainsKey(typeof(TEntity)))
+            var entityType = typeof(TEntity);
+            if (!_entityTypeConfigurationMap.ContainsKey(entityType))
             {
-                _entityTypeConfigurationMap.Add(typeof(TEntity), new EntityTypeConfiguration<TEntity>(Model));
+                _entityTypeConfigurationMap.Add(entityType, new EntityTypeConfiguration<TEntity>(Model));
             }
-            return (EntityTypeConfiguration<TEntity>)_entityTypeConfigurationMap[typeof(TEntity)];
+            return (EntityTypeConfiguration<TEntity>)_entityTypeConfigurationMap[entityType];
+        }
+
+        public IEntityTypeConfiguration ForEntityType(Type entityType)
+        {
+            return (IEntityTypeConfiguration) ForEntityTypeGenericMethod.MakeGenericMethod(entityType).Invoke(this, new object[]{});
         }
     }
 }

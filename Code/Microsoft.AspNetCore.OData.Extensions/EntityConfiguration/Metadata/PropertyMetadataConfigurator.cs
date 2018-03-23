@@ -24,9 +24,15 @@ namespace Brandless.AspNetCore.OData.Extensions
             return this;
         }
 
-        public PropertyMetadataConfigurator SetNullable(PropertyKind kind)
+        public PropertyMetadataConfigurator SetKind(PropertyKind kind)
         {
             Metadata.Kind = kind;
+            return this;
+        }
+
+        public PropertyMetadataConfigurator SetPlaceholder(string placeholder)
+        {
+            Metadata.Placeholder = placeholder;
             return this;
         }
     }

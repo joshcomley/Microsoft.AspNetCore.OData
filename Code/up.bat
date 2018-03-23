@@ -1,0 +1,1 @@
+call nuget update Microsoft.AspNetCore.OData.sln -source BrandlessMyGet -prerelease

@@ -13,5 +13,6 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         IEntityDisplayTextFormatterMap DisplayTextFormatterMap { get; set; }
         IEntityMetadata Metadata { get; set; }
         Dictionary<string, IPropertyMetadata> PropertyMetadatas { get; }
+        IPropertyMetadata PropertyMetadata(string propertyName);
     }
 }

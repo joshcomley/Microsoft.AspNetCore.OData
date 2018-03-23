@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
+using System.Reflection;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
@@ -104,8 +105,16 @@ namespace Brandless.AspNetCore.OData.Extensions
             this EdmModel model,
             Action<IEntityMetadata> metadataExpression = null)
         {
+            return model.Entity(typeof(TEntity), metadataExpression);
+        }
+
+        public static EntityMetadataConfigurator Entity(
+            this EdmModel model,
+            Type entityType,
+            Action<IEntityMetadata> metadataExpression = null)
+        {
             var propertyMetadata = model.ModelConfiguration()
-                .ForEntityType<TEntity>()
+                .ForEntityType(entityType)
                 .Metadata;
             metadataExpression?.Invoke(propertyMetadata);
             return new EntityMetadataConfigurator(propertyMetadata);
@@ -115,12 +124,54 @@ namespace Brandless.AspNetCore.OData.Extensions
             this EdmModel model,
             Expression<Func<TEntity, object>> propertyExpression,
             Action<IPropertyMetadata> metadataExpression = null)
-        {            
+        {
             var propertyMetadata = model.ModelConfiguration()
                 .ForEntityType<TEntity>()
                 .PropertyMetadata(propertyExpression);
             metadataExpression?.Invoke(propertyMetadata);
             return new PropertyMetadataConfigurator(propertyMetadata);
+        }
+
+        public static PropertyMetadataConfigurator Property(
+            this EdmModel model,
+            PropertyInfo property,
+            Action<IPropertyMetadata> metadataExpression = null)
+        {
+            var entityType = property.DeclaringType;
+            var propertyName = property.Name;
+            return model.Property(entityType, propertyName, metadataExpression);
+        }
+
+        public static PropertyMetadataConfigurator Property(
+            this EdmModel model,
+            Type entityType,
+            string propertyName,
+            Action<IPropertyMetadata> metadataExpression
+        )
+        {
+            var propertyMetadata = model.ModelConfiguration()
+                .ForEntityType(entityType)
+                .PropertyMetadata(propertyName);
+            metadataExpression?.Invoke(propertyMetadata);
+            return new PropertyMetadataConfigurator(propertyMetadata);
+        }
+
+        public static PropertyMetadataConfigurator Property<TEntity>(
+            this EdmModel model,
+            string propertyName,
+            Action<IPropertyMetadata> metadataExpression
+        )
+        {
+            return model.Property(typeof(TEntity), propertyName, metadataExpression);
+        }
+
+        public static PropertyMetadataConfigurator Property<TEntity>(
+            this EdmModel model,
+            PropertyInfo property,
+            Action<IPropertyMetadata> metadataExpression
+        )
+        {
+            return model.Property(typeof(TEntity), property.Name, metadataExpression);
         }
 
         public static EdmModel SetRegexValidation<TEntity>(
@@ -135,29 +186,29 @@ namespace Brandless.AspNetCore.OData.Extensions
             return model;
         }
 
-        public static EdmModel SetMaxLengthValidation<TEntity>(
-            this EdmModel model,
-            Expression<Func<TEntity, object>> propertyExpression,
-            int maxLength)
-        {
-            model.ModelConfiguration()
-                .ForEntityType<TEntity>()
-                .AnnotationsManager
-                .SetMaxLengthValidation(propertyExpression, maxLength);
-            return model;
-        }
+        //public static EdmModel SetMaxLengthValidation<TEntity>(
+        //    this EdmModel model,
+        //    Expression<Func<TEntity, object>> propertyExpression,
+        //    int maxLength)
+        //{
+        //    model.ModelConfiguration()
+        //        .ForEntityType<TEntity>()
+        //        .AnnotationsManager
+        //        .SetMaxLengthValidation(propertyExpression, maxLength);
+        //    return model;
+        //}
 
-        public static EdmModel SetMinLengthValidation<TEntity>(
-            this EdmModel model,
-            Expression<Func<TEntity, object>> propertyExpression,
-            int minLength)
-        {
-            model.ModelConfiguration()
-                .ForEntityType<TEntity>()
-                .AnnotationsManager
-                .SetMinLengthValidation(propertyExpression, minLength);
-            return model;
-        }
+        //public static EdmModel SetMinLengthValidation<TEntity>(
+        //    this EdmModel model,
+        //    Expression<Func<TEntity, object>> propertyExpression,
+        //    int minLength)
+        //{
+        //    model.ModelConfiguration()
+        //        .ForEntityType<TEntity>()
+        //        .AnnotationsManager
+        //        .SetMinLengthValidation(propertyExpression, minLength);
+        //    return model;
+        //}
 
         public static EdmModel SetRequiredValidation<TEntity>(
             this EdmModel model,
