@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Iql" Version="0.0.28-preview20034" />
-    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20034" />
+    <PackageReference Include="Iql" Version="0.0.28-preview20050" />
+    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20050" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.1" />
     <PackageReference Include="Microsoft.Data.Edm" Version="5.8.3" />
   </ItemGroup>

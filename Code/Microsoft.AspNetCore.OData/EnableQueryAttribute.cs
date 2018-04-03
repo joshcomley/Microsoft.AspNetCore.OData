@@ -25,17 +25,25 @@ namespace Microsoft.AspNetCore.OData
         {
             ActionFilterAttribute actionFilterAttribute = this;
             if (context == null)
+            {
                 throw new ArgumentNullException(nameof(context));
+            }
+
             if (next == null)
+            {
                 throw new ArgumentNullException(nameof(next));
+            }
             actionFilterAttribute.OnActionExecuting(context);
             if (context.Result != null)
+            {
                 return;
-            ActionExecutedContext context1 = await next();
-            await OnActionExecutedAsync(context1);
+            }
+            var context1 = await next();
+            await ProcessODataQuery(context1);
+            OnActionExecuted(context1);
         }
 
-        public async Task OnActionExecutedAsync(ActionExecutedContext context)
+        public async Task ProcessODataQuery(ActionExecutedContext context)
         {
             if (context == null)
             {
@@ -59,10 +67,10 @@ namespace Microsoft.AspNetCore.OData
             var result = contextResult as ObjectResult;
             if (result == null)
             {
-                if (context.Exception != null)
-                {
-                    throw context.Exception;
-                }
+                //if (context.Exception != null)
+                //{
+                //    throw context.Exception;
+                //}
 
                 return;
                 throw Error.Argument("context", SRResources.QueryingRequiresObjectContent, contextResult.GetType().FullName);
@@ -81,7 +89,7 @@ namespace Microsoft.AspNetCore.OData
             while (resultValue is ObjectResult)
             {
                 i++;
-                result = (ObjectResult) resultValue;
+                result = (ObjectResult)resultValue;
                 resultValue = (resultValue as ObjectResult).Value;
                 if (i > 50)
                 {

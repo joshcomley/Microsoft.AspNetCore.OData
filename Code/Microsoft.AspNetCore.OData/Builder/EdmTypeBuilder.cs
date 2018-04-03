@@ -366,6 +366,10 @@ namespace Microsoft.AspNetCore.OData.Builder
                     while (baseType != null)
                     {
                         PropertyInfo basePropInfo = baseType.GetProperty(propInfo.Name);
+                        if (basePropInfo == null)
+                        {
+                            break;
+                        }
                         if (_properties.TryGetValue(basePropInfo, out edmProperty))
                         {
                             edmProperties.Add(edmProperty);

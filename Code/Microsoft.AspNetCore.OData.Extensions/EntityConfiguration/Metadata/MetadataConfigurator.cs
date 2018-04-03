@@ -35,23 +35,15 @@ namespace Brandless.AspNetCore.OData.Extensions
             return (TReturn)this;
         }
 
-        public TReturn AddHint(string hint)
+        public TReturn SetHint(string name, string value = null)
         {
-            Metadata.Hints = Metadata.Hints ?? new List<string>();
-            if (!Metadata.Hints.Contains(hint))
-            {
-                Metadata.Hints.Add(hint);
-            }
+            Metadata.SetHint(name, value);
             return (TReturn)this;
         }
 
-        public TReturn RemoveHint(string hint)
+        public TReturn RemoveHint(string name)
         {
-            if (Metadata.Hints == null || !Metadata.Hints.Any())
-            {
-                return (TReturn)this;
-            }
-            Metadata.Hints.Remove(hint);
+            Metadata.RemoveHint(name);
             return (TReturn)this;
         }
     }

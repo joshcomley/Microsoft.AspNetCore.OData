@@ -12,18 +12,6 @@ namespace Brandless.AspNetCore.OData.Extensions
             return this;
         }
 
-        public PropertyMetadataConfigurator SetConvertedFromType(string convertedFromType)
-        {
-            Metadata.ConvertedFromType = convertedFromType;
-            return this;
-        }
-
-        public PropertyMetadataConfigurator SetNullable(bool nullable = true)
-        {
-            Metadata.Nullable = nullable;
-            return this;
-        }
-
         public PropertyMetadataConfigurator SetKind(PropertyKind kind)
         {
             Metadata.Kind = kind;
