@@ -18,18 +18,26 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             IEdmVocabularyAnnotatable target = type;
             if (propertyName != null)
             {
-                target = type.Properties().Single(p => p.Name == propertyName);
+                target = type.Properties().SingleOrDefault(p => p.Name == propertyName);
+                if (target == null)
+                {
+                    Valid = false;
+                }
             }
 
-            var coll = new EdmCollectionExpression(ChildExpressions);
-            var annotation = new EdmVocabularyAnnotation(target, AnnotationManagerBase.IqlConfigurationTerm, coll);
-            annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
-            Model.AddVocabularyAnnotation(annotation);
+            if (Valid)
+            {
+                var coll = new EdmCollectionExpression(ChildExpressions);
+                var annotation = new EdmVocabularyAnnotation(target, AnnotationManagerBase.IqlConfigurationTerm, coll);
+                annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
+                Model.AddVocabularyAnnotation(annotation);
 
-            ValidationAnnotation = new CollectionAnnotation<TEntity>("Validations", this, model);
-            DisplayFormattingAnnotation = new CollectionAnnotation<TEntity>("DisplayFormatters", this, model);
+                ValidationAnnotation = new CollectionAnnotation<TEntity>("Validations", this, model);
+                DisplayFormattingAnnotation = new CollectionAnnotation<TEntity>("DisplayFormatters", this, model);
+            }
         }
 
+        public bool Valid { get; set; } = true;
         public EdmModel Model { get; }
         public List<EdmLabeledExpression> ChildExpressions { get; } = new List<EdmLabeledExpression>();
         public CollectionAnnotation<TEntity> ValidationAnnotation { get; }

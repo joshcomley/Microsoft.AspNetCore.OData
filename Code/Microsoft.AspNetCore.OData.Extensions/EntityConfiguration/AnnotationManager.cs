@@ -114,19 +114,21 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 validationObject, propertyName);
         }
 
-        private IEdmExpression GetExpression(object obj)
+        private IEdmExpression GetExpression(object obj, Type objectType)
         {
             if (obj == null)
             {
                 return null;
             }
+
             IEdmExpression expression = null;
-            var objectType = obj.GetType();
+            objectType = objectType == null ? obj.GetType() : objectType;
+            var nullableUnderlyingType = Nullable.GetUnderlyingType(objectType);
             if (objectType == typeof(string))
             {
                 expression = new EdmStringConstant(obj as string);
             }
-            else if (objectType == typeof(bool) && (bool)obj)
+            else if ((objectType == typeof(bool) && !Equals(false, obj)) || nullableUnderlyingType == typeof(bool))
             {
                 expression = new EdmBooleanConstant((bool)obj);
             }
@@ -153,7 +155,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                     var arr = new List<IEdmExpression>();
                     foreach (var value in enumerable)
                     {
-                        var edmExpression = GetExpression(value);
+                        var edmExpression = GetExpression(value, null);
                         if (edmExpression != null)
                         {
                             arr.Add(edmExpression);
@@ -232,7 +234,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 var runtimeProperties = type.GetTypeInfo().GetRuntimeProperties();
                 foreach (var property in runtimeProperties)
                 {
-                    var edmExpression = GetExpression(property.GetValue(metadata));
+                    var edmExpression = GetExpression(property.GetValue(metadata), property.PropertyType);
                     if (edmExpression != null)
                     {
                         var label = new EdmLabeledExpression(property.Name, edmExpression);
@@ -273,7 +275,11 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             }
 
             var configurationAnnotation = new ConfigurationAnnotation<TEntity>(Model, propertyName);
-            PropertyConfigurationAnnotations.Add(propertyName, configurationAnnotation);
+            if (configurationAnnotation.Valid)
+            {
+                PropertyConfigurationAnnotations.Add(propertyName, configurationAnnotation);
+            }
+
             return configurationAnnotation;
         }
 

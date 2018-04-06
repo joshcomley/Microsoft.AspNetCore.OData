@@ -23,5 +23,11 @@ namespace Brandless.AspNetCore.OData.Extensions
             Metadata.Placeholder = placeholder;
             return this;
         }
+
+        public PropertyMetadataConfigurator SetNullable(bool nullable = true)
+        {
+            Metadata.Nullable = nullable;
+            return this;
+        }
     }
 }
