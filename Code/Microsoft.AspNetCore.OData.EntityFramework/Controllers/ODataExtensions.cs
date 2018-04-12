@@ -37,8 +37,9 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             foreach (var error in modelStateEntry.Errors)
             {
                 var detail = new ODataErrorDetail();
+                detail.ErrorCode = error.Exception?.Source;
                 detail.Target = key;
-                detail.Message = error.ErrorMessage;
+                detail.Message = error.Exception?.Message ?? error.ErrorMessage;
                 yield return detail;
             }
         }

@@ -90,7 +90,7 @@ namespace Microsoft.AspNetCore.OData.Routing.Conventions
                         return true;
                     }
                     if (action.Parameters.Count == 1 &&
-                        typeof(IEnumerable<object>).IsAssignableFrom(action.Parameters[0].ParameterType))
+                        typeof(IEnumerable<KeyValuePair<string, object>>).IsAssignableFrom(action.Parameters[0].ParameterType))
                     {
                         return true;
                     }

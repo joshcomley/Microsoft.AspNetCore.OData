@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -15,6 +16,7 @@ using Brandless.Data.Models;
 using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.EntityFramework.Extensions;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Routing.Conventions;
 using Microsoft.EntityFrameworkCore;
@@ -117,8 +119,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             }
             else
             {
-                result = typedResult.IsSingleResult 
-                    ? Ok(typedResult.SingleResult) 
+                result = typedResult.IsSingleResult
+                    ? Ok(typedResult.SingleResult)
                     : Ok(typedResult.Queryable);
             }
             return Task.FromResult(result);
@@ -137,7 +139,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 var keyValuePairs = new List<WhereQuery>();
                 foreach (var propertyPair in constraint.PropertyPairs)
                 {
-                    var keyValue = 
+                    var keyValue =
                         new WhereQuery(
                             propertyPair.DependentProperty.Name,
                             keys.Single(k => k.Key == propertyPair.PrincipalProperty.Name).Value,
@@ -166,8 +168,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                         return new GetNavigationPropertyTypedResult(null, true, null);
                     }
                     var detail = new WhereQuery(
-                        propertyName, 
-                        propertyValue, 
+                        propertyName,
+                        propertyValue,
                         principalType);
                     keyValuePairs.Add(detail);
                 }
@@ -202,7 +204,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 await OnBeforePostAsync(entity, patchEntity, value);
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
                 ModelState.Clear();
-                if (!ValidateEntity(entity))
+                if (!await ValidateEntityAsync(entity, isNew: true))
                 {
                     return this.ODataModelStateError();
                 }
@@ -228,7 +230,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             {
                 if (_validateEntityMethod == null)
                 {
-                    _validateEntityMethod = GetType().GetMethod(nameof(ValidateEntity));
+                    _validateEntityMethod = GetType().GetMethod(nameof(ValidateEntityAsync));
                 }
                 return _validateEntityMethod;
             }
@@ -244,7 +246,14 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 .Invoke(this, new[] { entity, validated, path });
         }
 
-        public virtual bool ValidateEntity<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "")
+        protected virtual void AddModelError<TEntity>(string key, string message, string code)
+        {
+            var exception = new Exception(message);
+            exception.Source = code;
+            ModelState.AddModelError(key, exception, MetadataProvider.GetMetadataForType(typeof(TEntity)));
+        }
+
+        public virtual async Task<bool> ValidateEntityAsync<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "", bool isNew = false)
         {
             validated = validated ?? new Dictionary<object, bool>();
             if (validated.ContainsKey(entity))
@@ -255,6 +264,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             var accessor = string.IsNullOrWhiteSpace(path) ? "" : ".";
             var isValid = !string.IsNullOrWhiteSpace(path) || TryValidateModel(entity);
             validated.Add(entity, isValid);
+            if (isNew && Crud.Unsecured.Find(entity) != null)
+            {
+                isValid = false;
+                AddModelError<TEntity>("", "An entity with this key already exists", "EntityWithKeyAlreadyExists");
+            }
             if (modelConfiguration != null)
             {
                 if (modelConfiguration.ValidationMap?.EntityValidations?.Any() == true)
@@ -265,7 +279,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                         isValid = isValid && iqlValidationResult;
                         if (!iqlValidationResult)
                         {
-                            ModelState.AddModelError(path, entityValidation.Message);
+                            AddModelError<TEntity>(path, entityValidation.Message, entityValidation.Key);
                         }
                     }
                 }
@@ -279,7 +293,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                             isValid = isValid && iqlValidationResult;
                             if (!iqlValidationResult)
                             {
-                                ModelState.AddModelError($"{path}{accessor}{propertyValidationCollection.PropertyName}", propertyValidation.Message);
+                                AddModelError<TEntity>($"{path}{accessor}{propertyValidationCollection.PropertyName}", propertyValidation.Message, propertyValidation.Key);
                             }
                         }
                     }
@@ -334,6 +348,12 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         [LoadModel]
         public virtual async Task<IActionResult> Patch([ModelBinder(typeof(KeyValueBinder))]KeyValuePair<string, object>[] keys)
         {
+            return await Patch(keys, ResolveJObject());
+        }
+
+        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject value)
+        {
+            keys = await CheckKeyChangeAsync(keys, value);
             var entity = Crud.Secured.Find(keys.Cast<object>().ToArray());
             if (entity == null)
             {
@@ -342,32 +362,116 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return await Patch(keys, ResolveJObject(), entity);
         }
 
+        protected virtual async Task<KeyValuePair<string, object>[]> CheckKeyChangeAsync(KeyValuePair<string, object>[] keys, JObject value)
+        {
+            List<KeyValuePair<PropertyInfo, object>> newKeyValues = null;
+            foreach (var pairing in keys)
+            {
+                if (!value[pairing.Key].ValueEquals(pairing.Value, pairing.Value.GetType()))
+                {
+                    newKeyValues = newKeyValues ?? new List<KeyValuePair<PropertyInfo, object>>();
+                    var property = typeof(T).GetProperty(pairing.Key);
+                    newKeyValues.Add(new KeyValuePair<PropertyInfo, object>(property,
+                        value[property.Name].GetValue(property.PropertyType)));
+                }
+            }
+
+            if (newKeyValues != null)
+            {
+                var oldKeyValues = new List<KeyValuePair<PropertyInfo, object>>();
+                foreach (var keyProperty in keys)
+                {
+                    var property = typeof(T).GetProperty(keyProperty.Key);
+                    oldKeyValues.Add(new KeyValuePair<PropertyInfo, object>(property, keyProperty.Value));
+                }
+                await PatchKeyAsync(oldKeyValues, newKeyValues);
+
+                var newKeys = new Dictionary<string, KeyValuePair<string, object>>();
+                foreach (var keyProperty in newKeyValues)
+                {
+                    newKeys.Add(keyProperty.Key.Name, new KeyValuePair<string, object>(keyProperty.Key.Name, keyProperty.Value));
+                }
+
+                foreach (var keyProperty in oldKeyValues)
+                {
+                    if (!newKeys.ContainsKey(keyProperty.Key.Name))
+                    {
+                        newKeys.Add(keyProperty.Key.Name, new KeyValuePair<string, object>(keyProperty.Key.Name, keyProperty.Value));
+                    }
+                }
+                return newKeys.Values.ToArray();
+            }
+
+            return keys;
+        }
+
+        public virtual async Task PatchKeyAsync(List<KeyValuePair<PropertyInfo, object>> oldKeyValues, List<KeyValuePair<PropertyInfo, object>> newKeyValues)
+        {
+            var sqlParameters = new List<SqlParameter>();
+            var setters = new List<string>();
+            string tableName = GetSqlTableName();
+            for (var i = 0; i < newKeyValues.Count; i++)
+            {
+                var property = newKeyValues[i].Key;
+                var newValueParameterName = $"@NewValue{property.Name}";
+                setters.Add($"[{property.Name}] = {newValueParameterName}");
+                sqlParameters.Add(new SqlParameter(newValueParameterName, newKeyValues[i].Value));
+                //await Crud.Secured.DeleteAndSaveAsync(oldEntity);
+            }
+
+            var filters = new List<string>();
+            foreach (var keyProperty in oldKeyValues)
+            {
+                var property = keyProperty.Key;
+                var parameterName = $"@OldValue{property.Name}";
+                filters.Add($"[{property.Name}] = {parameterName}");
+                sqlParameters.Add(new SqlParameter(parameterName, keyProperty.Value));
+            }
+
+            await Crud.Secured.Context.Database.ExecuteSqlCommandAsync(
+                $"Update [{tableName}] SET {string.Join(", ", setters)} WHERE {string.Join(" AND ", filters)}",
+                sqlParameters);
+        }
+
+        public virtual string GetSqlTableName()
+        {
+            return Crud.Secured.Context.Model.FindEntityType(typeof(T)).SqlServer().TableName;
+        }
+
         protected virtual JObject ResolveJObject()
         {
             return PostedJson == null
                 ? new JObject()
                 : JObject.Parse(PostedJson);
         }
-        
-        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] key, JObject value, T currentDatabaseEntity)
+
+        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject value, T currentDatabaseEntity)
         {
             await OnValidate(PostedEntity, value);
-            return await Patch(key, value, currentDatabaseEntity, PostedEntity);
+            return await Patch(keys, value, currentDatabaseEntity, PostedEntity);
         }
 
-        public virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] key, JObject value, T currentDatabaseEntity, T patchEntity)
+        public virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject value, T currentDatabaseEntity, T patchEntity)
         {
             await OnBeforePostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
-            await OnBeforePatchAsync(key, currentDatabaseEntity, patchEntity, value);
+            await OnBeforePatchAsync(keys, currentDatabaseEntity, patchEntity, value);
             await PatchObjectWithLegalPropertiesAsync(currentDatabaseEntity, patchEntity, value);
             ModelState.Clear();
-            if (!ValidateEntity(currentDatabaseEntity))
+            if (!await ValidateEntityAsync(currentDatabaseEntity))
             {
                 return this.ODataModelStateError();
             }
+
+            for (var i = 0; i < keys.Length; i++)
+            {
+                if (!Equals(keys[i].Value, value[keys[i].Key]))
+                {
+                    // We have a key change
+                }
+            }
             var oDataActionResult = await UpdateAsync(currentDatabaseEntity);
             var result = ResolveHttpResult(oDataActionResult);
-            await OnAfterPatchAsync(key, currentDatabaseEntity, patchEntity, value);
+            await OnAfterPatchAsync(keys, currentDatabaseEntity, patchEntity, value);
             await OnAfterPostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
             return result;
         }
