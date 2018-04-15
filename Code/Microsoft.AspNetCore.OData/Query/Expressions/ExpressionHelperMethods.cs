@@ -22,6 +22,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         private static MethodInfo _thenByDescendingMethod = GenericMethodOf(_ => Queryable.ThenByDescending<int, int>(default(IOrderedQueryable<int>), default(Expression<Func<int, int>>)));
         private static MethodInfo _enumerableThenByDescendingMethod = GenericMethodOf(_ => Enumerable.ThenByDescending<int, int>(default(IOrderedEnumerable<int>), default(Func<int, int>)));
         private static MethodInfo _countMethod = GenericMethodOf(_ => Queryable.LongCount<int>(default(IQueryable<int>)));
+        private static MethodInfo _countWithPredicateMethod = GenericMethodOf(_ => Queryable.LongCount<int>(default(IQueryable<int>), null));
         private static MethodInfo _groupByMethod = GenericMethodOf(_ => Queryable.GroupBy<int, int>(default(IQueryable<int>), default(Expression<Func<int, int>>)));
         private static MethodInfo _aggregateMethod = GenericMethodOf(_ => Queryable.Aggregate<int, int>(default(IQueryable<int>), default(int), default(Expression<Func<int, int, int>>)));
         private static MethodInfo _skipMethod = GenericMethodOf(_ => Queryable.Skip<int>(default(IQueryable<int>), default(int)));
@@ -75,6 +76,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         };
 
         private static MethodInfo _enumerableCountMethod = GenericMethodOf(_ => Enumerable.LongCount<int>(default(IEnumerable<int>)));
+        private static MethodInfo _enumerableCountWithPredicateMethod = GenericMethodOf(_ => Enumerable.LongCount<int>(default(IEnumerable<int>), null));
 
         public static MethodInfo QueryableOrderByGeneric
         {
@@ -119,6 +121,11 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         public static MethodInfo QueryableCountGeneric
         {
             get { return _countMethod; }
+        }
+
+        public static MethodInfo QueryableCountWithPredicateGeneric
+        {
+            get { return _countWithPredicateMethod; }
         }
 
         public static Dictionary<Type, MethodInfo> QueryableSumGenerics
@@ -254,6 +261,11 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         public static MethodInfo EnumerableCountGeneric
         {
             get { return _enumerableCountMethod; }
+        }
+
+        public static MethodInfo EnumerableCountWithPredicateGeneric
+        {
+            get { return _enumerableCountWithPredicateMethod; }
         }
 
         private static MethodInfo GenericMethodOf<TReturn>(Expression<Func<object, TReturn>> expression)

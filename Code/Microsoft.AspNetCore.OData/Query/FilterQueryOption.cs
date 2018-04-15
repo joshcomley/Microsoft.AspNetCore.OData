@@ -18,6 +18,7 @@ namespace Microsoft.AspNetCore.OData.Query
     {
         private FilterClause _filterClause;
         private readonly ODataQueryOptionParser _queryOptionParser;
+        private readonly IServiceProvider _serviceProvider;
 
         /// <summary>
         /// Initialize a new instance of <see cref="FilterQueryOption"/> based on the raw $filter value and 
@@ -26,7 +27,9 @@ namespace Microsoft.AspNetCore.OData.Query
         /// <param name="rawValue">The raw value for $filter query. It can be null or empty.</param>
         /// <param name="context">The <see cref="ODataQueryContext"/> which contains the <see cref="IEdmModel"/> and some type information</param>
         /// <param name="queryOptionParser">The <see cref="ODataQueryOptionParser"/> which is used to parse the query option.</param>
-        public FilterQueryOption(string rawValue, ODataQueryContext context, ODataQueryOptionParser queryOptionParser)
+        /// <param name="serviceProvider"></param>
+        public FilterQueryOption(string rawValue, ODataQueryContext context, ODataQueryOptionParser queryOptionParser,
+            IServiceProvider serviceProvider)
         {
             if (context == null)
             {
@@ -46,6 +49,7 @@ namespace Microsoft.AspNetCore.OData.Query
             Context = context;
             RawValue = rawValue;
             _queryOptionParser = queryOptionParser;
+            _serviceProvider = serviceProvider;
         }
 
         /// <summary>
@@ -102,7 +106,7 @@ namespace Microsoft.AspNetCore.OData.Query
                 throw Error.NotSupported(SRResources.ApplyToOnUntypedQueryOption, "ApplyTo");
             }
             
-            var filter = FilterBinder.Bind(FilterClause, Context.ElementClrType, Context.Model, assemblyProvider, querySettings);
+            var filter = FilterBinder.Bind(FilterClause, Context.ElementClrType, Context.Model, assemblyProvider, querySettings, _serviceProvider);
             return ExpressionHelpers.Where(query, filter, Context.ElementClrType);
         }
     }

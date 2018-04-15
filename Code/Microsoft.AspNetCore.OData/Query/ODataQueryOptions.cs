@@ -299,7 +299,7 @@ namespace Microsoft.AspNetCore.OData.Query
                     case "$filter":
                         ThrowIfEmpty(kvp.Value, "$filter");
                         RawValues.Filter = kvp.Value;
-                        Filter = new FilterQueryOption(kvp.Value, Context, _queryOptionParser);
+                        Filter = new FilterQueryOption(kvp.Value, Context, _queryOptionParser, _serviceProvider);
                         break;
                     case "$orderby":
                         ThrowIfEmpty(kvp.Value, "$orderby");

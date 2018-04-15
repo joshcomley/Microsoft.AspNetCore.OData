@@ -29,8 +29,10 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         private Type _groupByClrType;
 
-        internal AggregationBinder(ODataQuerySettings settings, IAssemblyProvider assembliesResolver, Type elementType, IEdmModel model, TransformationNode transformation)
-            : base(model, assembliesResolver, settings)
+        internal AggregationBinder(
+            ODataQuerySettings settings, IAssemblyProvider assembliesResolver, Type elementType, IEdmModel model, TransformationNode transformation,
+            IServiceProvider serviceProvider)
+            : base(model, assembliesResolver, settings, serviceProvider)
         {
             Contract.Assert(elementType != null);
             Contract.Assert(transformation != null);

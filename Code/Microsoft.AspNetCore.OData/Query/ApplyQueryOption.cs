@@ -20,6 +20,7 @@ namespace Microsoft.AspNetCore.OData.Query
     {
         private ApplyClause _applyClause;
         private ODataQueryOptionParser _queryOptionParser;
+        private readonly IServiceProvider _serviceProvider;
 
         /// <summary>
         /// Initialize a new instance of <see cref="ApplyQueryOption"/> based on the raw $apply value and 
@@ -28,7 +29,7 @@ namespace Microsoft.AspNetCore.OData.Query
         /// <param name="rawValue">The raw value for $filter query. It can be null or empty.</param>
         /// <param name="context">The <see cref="ODataQueryContext"/> which contains the <see cref="IEdmModel"/> and some type information</param>
         /// <param name="queryOptionParser">The <see cref="ODataQueryOptionParser"/> which is used to parse the query option.</param>
-        public ApplyQueryOption(string rawValue, ODataQueryContext context, ODataQueryOptionParser queryOptionParser)
+        public ApplyQueryOption(string rawValue, ODataQueryContext context, ODataQueryOptionParser queryOptionParser, IServiceProvider serviceProvider)
         {
             if (context == null)
             {
@@ -50,6 +51,7 @@ namespace Microsoft.AspNetCore.OData.Query
             // TODO: Implement and add validator
             //Validator = new FilterQueryValidator();
             _queryOptionParser = queryOptionParser;
+            _serviceProvider = serviceProvider;
             ResultClrType = Context.ElementClrType;
         }
 
@@ -132,14 +134,14 @@ namespace Microsoft.AspNetCore.OData.Query
             {
                 if (transformation.Kind == TransformationNodeKind.Aggregate || transformation.Kind == TransformationNodeKind.GroupBy)
                 {
-                    var binder = new AggregationBinder(updatedSettings, assemblyProvider, ResultClrType, Context.Model, transformation as TransformationNode);
+                    var binder = new AggregationBinder(updatedSettings, assemblyProvider, ResultClrType, Context.Model, transformation as TransformationNode, _serviceProvider);
                     query = binder.Bind(query);
                     this.ResultClrType = binder.ResultClrType;
                 }
                 else if (transformation.Kind == TransformationNodeKind.Filter)
                 {
                     var filterTransformation = transformation as FilterTransformationNode;
-                    Expression filter = FilterBinder.Bind(filterTransformation.FilterClause, ResultClrType, Context.Model, assemblyProvider, updatedSettings);
+                    Expression filter = FilterBinder.Bind(filterTransformation.FilterClause, ResultClrType, Context.Model, assemblyProvider, updatedSettings, _serviceProvider);
                     query = ExpressionHelpers.Where(query, filter, ResultClrType);
                 }
             }

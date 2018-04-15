@@ -83,20 +83,21 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             IEdmModel model,
             IAssemblyProvider assemblyProvider,
             ODataQuerySettings querySettings,
-            Type filterType)
-            : base(model, assemblyProvider, querySettings)
+            Type filterType,
+            IServiceProvider serviceProvider)
+            : base(model, assemblyProvider, querySettings, serviceProvider)
         {
             _filterType = filterType;
         }
 
         internal static Expression<Func<TEntityType, bool>> Bind<TEntityType>(FilterClause filterClause, IEdmModel model,
-            IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings)
+            IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings, IServiceProvider serviceProvider)
         {
-            return Bind(filterClause, typeof(TEntityType), model, assemblyProvider, querySettings) as Expression<Func<TEntityType, bool>>;
+            return Bind(filterClause, typeof(TEntityType), model, assemblyProvider, querySettings, serviceProvider) as Expression<Func<TEntityType, bool>>;
         }
 
         internal static Expression Bind(FilterClause filterClause, Type filterType, IEdmModel model,
-            IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings)
+            IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings, IServiceProvider serviceProvider)
         {
             if (filterClause == null)
             {
@@ -115,7 +116,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 throw Error.ArgumentNull("assembliesResolver");
             }
 
-            FilterBinder binder = new FilterBinder(model, assemblyProvider, querySettings, filterType);
+            FilterBinder binder = new FilterBinder(model, assemblyProvider, querySettings, filterType, serviceProvider);
 
             return BindFilterClause(binder, filterClause, filterType);
         }
@@ -264,18 +265,50 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 return countExpression;
             }
 
+            Expression filterPredicate = null;
+            if (node.FilterOption != null)
+            {
+                filterPredicate = FilterBinder.Bind(node.FilterOption, elementType, RequestContainer);
+            }
+
             MethodInfo countMethod;
+
             if (typeof(IQueryable).IsAssignableFrom(source.Type))
             {
-                countMethod = ExpressionHelperMethods.QueryableCountGeneric.MakeGenericMethod(elementType);
+                if (filterPredicate != null)
+                {
+                    countMethod =
+                        ExpressionHelperMethods.QueryableCountWithPredicateGeneric;
+                }
+                else
+                {
+                    countMethod = ExpressionHelperMethods.QueryableCountGeneric;
+                }
             }
             else
             {
-                countMethod = ExpressionHelperMethods.EnumerableCountGeneric.MakeGenericMethod(elementType);
+                if (filterPredicate != null)
+                {
+                    countMethod =
+                        ExpressionHelperMethods.EnumerableCountWithPredicateGeneric;
+                }
+                else
+                {
+                    countMethod = ExpressionHelperMethods.EnumerableCountGeneric;
+                }
             }
 
+            countMethod = countMethod.MakeGenericMethod(elementType);
+
             // call Count() method.
-            countExpression = Expression.Call(null, countMethod, new[] { source });
+            if (filterPredicate != null)
+            {
+                countExpression = Expression.Call(null, countMethod, new[] { source, filterPredicate });
+            }
+            else
+            {
+                countExpression = Expression.Call(null, countMethod, new[] { source });
+            }
 
             if (QuerySettings.HandleNullPropagation == HandleNullPropagationOption.True)
             {

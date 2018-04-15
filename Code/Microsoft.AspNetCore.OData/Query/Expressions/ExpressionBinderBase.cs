@@ -73,10 +73,12 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             AssemblyProvider = RequestContainer.GetRequiredService<IAssemblyProvider>();
         }
 
-        internal ExpressionBinderBase(IEdmModel model, IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings)
+        internal ExpressionBinderBase(
+            IEdmModel model, IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings, IServiceProvider serviceProvider)
             : this(model, querySettings)
         {
             AssemblyProvider = assemblyProvider;
+            RequestContainer = serviceProvider;
         }
 
         internal ExpressionBinderBase(IEdmModel model, ODataQuerySettings querySettings)
