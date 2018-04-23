@@ -545,9 +545,23 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         /// <returns>The LINQ <see cref="Expression"/> created.</returns>
         public virtual Expression BindBinaryOperatorNode(BinaryOperatorNode binaryOperatorNode)
         {
+            if (binaryOperatorNode.Left is SingleValueFunctionCallNode && binaryOperatorNode.Right is ConstantNode)
+            {
+                var functionCall = binaryOperatorNode.Left as SingleValueFunctionCallNode;
+                var constant = binaryOperatorNode.Right as ConstantNode;
+                if (functionCall.Name == ClrCanonicalFunctions.NowFunctionName && constant.Value is TimeSpan)
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    var timeSpan = (TimeSpan)constant.Value;
+                    if (binaryOperatorNode.OperatorKind == BinaryOperatorKind.Subtract)
+                    {
+                        return Expression.Constant(now - timeSpan);
+                    }
+                    return Expression.Constant(now + timeSpan);
+                }
+            }
             Expression left = Bind(binaryOperatorNode.Left);
             Expression right = Bind(binaryOperatorNode.Right);
-
             // handle null propagation only if either of the operands can be null
             bool isNullPropagationRequired = QuerySettings.HandleNullPropagation == HandleNullPropagationOption.True && (IsNullable(left.Type) || IsNullable(right.Type));
             if (isNullPropagationRequired)
