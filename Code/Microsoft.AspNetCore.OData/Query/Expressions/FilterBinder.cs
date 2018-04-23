@@ -860,6 +860,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 case ClrCanonicalFunctions.TimeFunctionName:
                     return BindTime(node);
 
+                case ClrCanonicalFunctions.NowFunctionName:
+                    return BindNow(node);
+
                 default:
                     // Get Expression of custom binded method.
                     Expression expression = BindCustomMethodExpressionOrNull(node);
@@ -1129,6 +1132,17 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             // EF doesn't support new TimeOfDay(int, int, int, int), also doesn't support other property access, for example DateTimeOffset.DateTime.
             // Therefore, we just return the source (DateTime or DateTimeOffset).
             return arguments[0];
+        }
+        
+        private Expression BindNow(SingleValueFunctionCallNode node)
+        {
+            Contract.Assert("now" == node.Name);
+
+            // Function Now() does not take any arguemnts.
+            Expression[] arguments = BindArguments(node.Parameters);
+            Contract.Assert(arguments.Length == 0);
+
+            return Expression.Property(null, typeof(DateTimeOffset), "UtcNow");
         }
 
         private Expression BindFractionalSeconds(SingleValueFunctionCallNode node)

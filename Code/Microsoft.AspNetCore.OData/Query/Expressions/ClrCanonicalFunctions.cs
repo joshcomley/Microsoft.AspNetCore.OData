@@ -43,6 +43,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         internal const string IsofFunctionName = "isof";
         internal const string DateFunctionName = "date";
         internal const string TimeFunctionName = "time";
+        internal const string NowFunctionName = "now";
 
         // string functions
         public static readonly MethodInfo StartsWith;
