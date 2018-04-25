@@ -364,6 +364,10 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         protected virtual async Task<KeyValuePair<string, object>[]> CheckKeyChangeAsync(KeyValuePair<string, object>[] keys, JObject value)
         {
+            if (!value.HasValues)
+            {
+                return keys;
+            }
             List<KeyValuePair<PropertyInfo, object>> newKeyValues = null;
             foreach (var pairing in keys)
             {
