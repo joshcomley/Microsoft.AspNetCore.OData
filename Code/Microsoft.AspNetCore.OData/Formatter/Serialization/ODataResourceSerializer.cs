@@ -15,11 +15,20 @@ using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.AspNetCore.OData.Common;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Query;
+using Microsoft.AspNetCore.OData.Query.Expressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OData;
 using Microsoft.OData.Edm;
 using Microsoft.OData.UriParser;
+using ODataAction = Microsoft.OData.ODataAction;
+using ODataFunction = Microsoft.OData.ODataFunction;
+using ODataMessageWriter = Microsoft.OData.ODataMessageWriter;
+using ODataNullValue = Microsoft.OData.ODataNullValue;
+using ODataOperation = Microsoft.OData.ODataOperation;
+using ODataPayloadKind = Microsoft.OData.ODataPayloadKind;
+using ODataProperty = Microsoft.OData.ODataProperty;
+using ODataWriter = Microsoft.OData.ODataWriter;
 
 namespace Microsoft.AspNetCore.OData.Formatter.Serialization
 {
@@ -137,6 +146,89 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
             }
 
             return Task.FromResult<object>(null);
+        }
+
+        private IEnumerable<ODataProperty> CreateODataPropertiesFromDynamicType(EdmEntityType entityType, object graph, Dictionary<IEdmTypeReference, object> navigationProperties = null)
+        {
+            var properties = new List<ODataProperty>();
+            var dynamicObject = graph as DynamicTypeWrapper;
+            foreach (var prop in graph.GetType().GetProperties())
+            {
+                object value;
+                ODataProperty property = null;
+                if (dynamicObject.TryGetPropertyValue(prop.Name, out value))
+                {
+                    bool isNavigationProperty = false;
+                    if (navigationProperties != null)
+                    {
+                        if (entityType != null)
+                        {
+                            var navigationProperty =
+                                entityType.NavigationProperties().FirstOrDefault(p => p.Name.Equals(prop.Name));
+                            if (navigationProperty != null)
+                            {
+                                navigationProperties.Add(navigationProperty.Type, value);
+                                isNavigationProperty = true;
+                            }
+                        }
+                    }
+
+                    if (!isNavigationProperty)
+                    {
+                        if (value != null && EdmLibHelpers.IsDynamicTypeWrapper(value.GetType()))
+                        {
+                            property = new ODataProperty
+                            {
+                                Name = prop.Name,
+                                Value = new ODataResource
+                                {
+                                    Properties = CreateODataPropertiesFromDynamicType(entityType, value)
+                                }
+                            };
+                        }
+                        else
+                        {
+                            property = new ODataProperty
+                            {
+                                Name = prop.Name,
+                                Value = value
+                            };
+                        }
+
+                        properties.Add(property);
+                    }
+                }
+            }
+            return properties;
+        }
+
+        private async Task WriteDynamicTypeEntry(object graph, ODataWriter writer, IEdmTypeReference expectedType,
+            ODataSerializerContext writeContext)
+        {
+            var navigationProperties = new Dictionary<IEdmTypeReference, object>();
+            var entityType = expectedType.Definition as EdmEntityType;
+            var entry = new ODataResource
+            {
+                TypeName = expectedType.FullName(),
+                Properties = CreateODataPropertiesFromDynamicType(entityType, graph, navigationProperties)
+            };
+
+            entry.IsTransient = true;
+            writer.WriteStart(entry);
+            foreach (IEdmTypeReference type in navigationProperties.Keys)
+            {
+                var entityContext = new ResourceContext(writeContext, expectedType.AsEntity(), graph);
+                var navigationProperty = entityType.NavigationProperties().FirstOrDefault(p => p.Type.Equals(type));
+                var navigationLink = await CreateNavigationLinkAsync(navigationProperty, entityContext);
+                if (navigationLink != null)
+                {
+                    writer.WriteStart(navigationLink);
+                    await WriteDynamicTypeEntry(navigationProperties[type], writer, type, writeContext);
+                    writer.WriteEnd();
+                }
+            }
+
+            writer.WriteEnd();
         }
 
         private async Task WriteResourceAsync(object graph, ODataWriter writer, ODataSerializerContext writeContext,
@@ -629,6 +721,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
                 await serializer.WriteObjectInlineAsync(propertyValue, edmProperty.Type, writer, nestedWriteContext);
             }
         }
+
 
         private async Task<IEnumerable<ODataNestedResourceInfo>> CreateNavigationLinksAsync(
             IEnumerable<IEdmNavigationProperty> navigationProperties, ResourceContext resourceContext)

@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.OData.Edm;
 using System;
+using System.Collections;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -214,8 +215,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         public static IQueryable Select(IQueryable query, LambdaExpression expression, Type type)
         {
-            MethodInfo selectMethod = ExpressionHelperMethods.QueryableSelectGeneric.MakeGenericMethod(type, expression.Body.Type);
-            return selectMethod.Invoke(null, new object[] { query, expression }) as IQueryable;
+            MethodInfo selectMethod = ExpressionHelperMethods.EnumerableSelectGeneric.MakeGenericMethod(type, expression.Body.Type);
+            return (selectMethod.Invoke(null, new object[] { query, expression.Compile() }) as IEnumerable).AsQueryable();
         }
 
         public static IQueryable Aggregate(IQueryable query, object init, LambdaExpression sumLambda, Type type, Type wrapperType)

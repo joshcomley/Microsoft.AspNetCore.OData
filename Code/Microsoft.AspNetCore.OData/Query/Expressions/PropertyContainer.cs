@@ -183,10 +183,22 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         public class NamedProperty<T> : PropertyContainer
         {
-            public string Name { get; set; }
+            private T _value;
+            private string _name;
 
-            public T Value { get; set; }
+            public string Name
+            {
+                get => _name;
+                set => _name = value;
+            }
 
+            public T Value
+            {
+                get => _value;
+                set => _value = value;
+            }
+
+            public object Other { get; set; }
             public bool AutoSelected { get; set; }
 
             public override void ToDictionaryCore(Dictionary<string, object> dictionary, IPropertyMapper propertyMapper,

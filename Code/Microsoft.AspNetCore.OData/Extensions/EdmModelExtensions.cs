@@ -16,6 +16,49 @@ namespace Microsoft.AspNetCore.OData.Extensions
 {
     public static class EdmModelExtensions
     {
+        /// <summary>
+        /// Gets the <see cref="EntitySetLinkBuilderAnnotation"/> to be used while generating self and navigation links for the given entity set.
+        /// </summary>
+        /// <param name="model">The <see cref="IEdmModel"/> containing the entity set.</param>
+        /// <param name="entitySet">The entity set.</param>
+        /// <returns>The <see cref="EntitySetLinkBuilderAnnotation"/> if set for the given the entity set; otherwise, a new 
+        /// <see cref="EntitySetLinkBuilderAnnotation"/> that generates URLs that follow OData URL conventions.</returns>
+        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters", Justification = "IEdmEntitySet is more relevant here.")]
+        public static NavigationSourceLinkBuilderAnnotation GetEntitySetLinkBuilder(this IEdmModel model, IEdmEntitySet entitySet)
+        {
+            if (model == null)
+            {
+                throw Error.ArgumentNull("model");
+            }
+
+            NavigationSourceLinkBuilderAnnotation annotation = model.GetAnnotationValue<NavigationSourceLinkBuilderAnnotation>(entitySet);
+            if (annotation == null)
+            {
+                // construct and set an entity set link builder that follows OData URL conventions.
+                annotation = new NavigationSourceLinkBuilderAnnotation(entitySet, model);
+                model.SetEntitySetLinkBuilder(entitySet, annotation);
+            }
+
+            return annotation;
+        }
+
+        /// <summary>
+        /// Sets the <see cref="EntitySetLinkBuilderAnnotation"/> to be used while generating self and navigation links for the given entity set.
+        /// </summary>
+        /// <param name="model">The <see cref="IEdmModel"/> containing the entity set.</param>
+        /// <param name="entitySet">The entity set.</param>
+        /// <param name="entitySetLinkBuilder">The <see cref="EntitySetLinkBuilderAnnotation"/> to set.</param>
+        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters", Justification = "IEdmEntitySet is more relevant here.")]
+        public static void SetEntitySetLinkBuilder(this IEdmModel model, IEdmEntitySet entitySet, NavigationSourceLinkBuilderAnnotation entitySetLinkBuilder)
+        {
+            if (model == null)
+            {
+                throw Error.ArgumentNull("model");
+            }
+
+            model.SetAnnotationValue(entitySet, entitySetLinkBuilder);
+        }
+
         public static bool HasProperty<T, TPropertyType>(this IEdmModel model,
             Expression<Func<T, TPropertyType>> propertyExpression)
         {

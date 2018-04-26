@@ -207,7 +207,7 @@ namespace Microsoft.AspNetCore.OData.Query
                 Context.ElementClrType = Apply.ResultClrType;
             }
 
-            if (orderBy != null)
+            if (orderBy != null && Apply == null)
             {
                 query = orderBy.ApplyTo(query, querySettings);
             }
@@ -252,7 +252,7 @@ namespace Microsoft.AspNetCore.OData.Query
                     return query;
                 }
             }
-            if (pageSize.HasValue)
+            if (pageSize.HasValue && Apply == null)
             {
                 bool resultsLimited;
                 query = LimitResults(query, pageSize.Value, out resultsLimited);
@@ -319,6 +319,11 @@ namespace Microsoft.AspNetCore.OData.Query
                         break;
                     case "$select":
                         RawValues.Select = kvp.Value;
+                        break;
+                    case "$apply":
+                        ThrowIfEmpty(kvp.Value, "$apply");
+                        RawValues.Apply = kvp.Value;
+                        Apply = new ApplyQueryOption(kvp.Value, Context, _queryOptionParser, _serviceProvider);
                         break;
                     case "$count":
                         // According to the OData 4 protocol, the value of this query option is optional:

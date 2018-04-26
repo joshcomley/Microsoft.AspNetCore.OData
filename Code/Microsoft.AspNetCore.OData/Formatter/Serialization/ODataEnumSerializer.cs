@@ -48,7 +48,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
         }
 
         /// <inheritdoc/>
-        public sealed override ODataValue CreateODataValue(object graph, IEdmTypeReference expectedType, ODataSerializerContext writeContext)
+        public sealed override ODataAnnotatable CreateODataValue(object graph, IEdmTypeReference expectedType, ODataSerializerContext writeContext)
         {
             if (!expectedType.IsEnum())
             {

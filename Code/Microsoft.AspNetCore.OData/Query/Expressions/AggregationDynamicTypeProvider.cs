@@ -21,8 +21,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
     /// </remarks>
     internal class AggregationDynamicTypeProvider
     {
-        private static readonly MethodInfo getPropertyValueMethod = typeof(DynamicTypeWrapper).GetMethod("GetPropertyValue");
-        private static readonly MethodInfo setPropertyValueMethod = typeof(DynamicTypeWrapper).GetMethod("SetPropertyValue");
+        private static readonly MethodInfo getPropertyValueMethod = typeof(AggregationWrapper).GetMethod("GetPropertyValue");
+        private static readonly MethodInfo setPropertyValueMethod = typeof(AggregationWrapper).GetMethod("SetPropertyValue");
 
         private const string ModuleName = "MainModule";
         private const string DynamicTypeName = "DynamicTypeWrapper";
@@ -43,7 +43,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             IEdmModel model,
             IAssemblyProvider assemblyProvider,
             IEnumerable<GroupByPropertyNode> propertyNodes = null,
-            IEnumerable<AggregateExpression> expressions = null) where T : DynamicTypeWrapper
+            IEnumerable<AggregateExpression> expressions = null) where T : AggregationWrapper
         {
             Contract.Assert(model != null);
 
@@ -77,13 +77,14 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                     }
                     else
                     {
-                        var complexProp = GetResultType<DynamicTypeWrapper>(model, assemblyProvider, field.ChildTransformations);
+                        var complexProp = GetResultType<AggregationWrapper>(model, assemblyProvider, field.ChildTransformations);
                         CreateProperty(tb, field.Name, complexProp);
                     }
                 }
             }
 
-            return tb.CreateTypeInfo().AsType();
+            var typeInfo = tb.CreateTypeInfo();
+            return typeInfo.AsType();
         }
 
         private static TypeBuilder GetTypeBuilder<T>(string typeSignature) where T : DynamicTypeWrapper

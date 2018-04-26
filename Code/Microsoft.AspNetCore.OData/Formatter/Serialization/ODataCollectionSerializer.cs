@@ -51,7 +51,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
         }
 
         /// <inheritdoc/>
-        public sealed override ODataValue CreateODataValue(object graph, IEdmTypeReference expectedType,
+        public sealed override ODataAnnotatable CreateODataValue(object graph, IEdmTypeReference expectedType,
             ODataSerializerContext writeContext)
         {
             IEnumerable enumerable = graph as IEnumerable;
@@ -167,7 +167,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
                     // ODataCollectionWriter expects the individual elements in the collection to be the underlying
                     // values and not ODataValues.
                     valueCollection.Add(
-                        itemSerializer.CreateODataValue(item, actualType, writeContext).GetInnerValue());
+                        (itemSerializer.CreateODataValue(item, actualType, writeContext) as ODataValue).GetInnerValue());
                 }
             }
 

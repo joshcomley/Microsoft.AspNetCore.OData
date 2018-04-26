@@ -18,6 +18,47 @@ namespace Microsoft.AspNetCore.OData
 {
     internal static class TypeHelper
     {
+
+        /// <summary>
+        /// Determine if a type is null-able.
+        /// </summary>
+        /// <param name="clrType">The type to test.</param>
+        /// <returns>True if the type is null-able; false otherwise.</returns>
+        public static bool IsNullable(Type clrType)
+        {
+            if (TypeHelper.IsValueType(clrType))
+            {
+                // value types are only nullable if they are Nullable<T>
+                return TypeHelper.IsGenericType(clrType) && clrType.GetGenericTypeDefinition() == typeof(Nullable<>);
+            }
+            else
+            {
+                // reference types are always nullable
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Determine if a type is a generic type.
+        /// </summary>
+        /// <param name="clrType">The type to test.</param>
+        /// <returns>True if the type is a generic type; false otherwise.</returns>
+        public static bool IsGenericType(this Type clrType)
+        {
+            return clrType.IsGenericType;
+        }
+
+
+        /// <summary>
+        /// Determine if a type is a value type.
+        /// </summary>
+        /// <param name="clrType">The type to test.</param>
+        /// <returns>True if the type is a value type; false otherwise.</returns>
+        public static bool IsValueType(Type clrType)
+        {
+            return clrType.IsValueType;
+        }
+
         public static Type ToNullable(this Type t)
         {
             if (t.IsNullable())

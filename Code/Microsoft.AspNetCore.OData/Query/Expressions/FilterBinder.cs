@@ -84,8 +84,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             IAssemblyProvider assemblyProvider,
             ODataQuerySettings querySettings,
             Type filterType,
-            IServiceProvider serviceProvider)
-            : base(model, assemblyProvider, querySettings, serviceProvider)
+            IServiceProvider requestContainer)
+            : base(model, requestContainer, querySettings)
         {
             _filterType = filterType;
         }
@@ -617,7 +617,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 return NullConstant;
             }
 
-            Type constantType = EdmLibHelpers.GetClrType(constantNode.TypeReference, Model, AssemblyProvider);
+            Type constantType = EdmLibHelpers.GetClrType(constantNode.TypeReference, Model, InternalAssembliesResolver);
             object value = constantNode.Value;
 
             if (constantNode.TypeReference != null && constantNode.TypeReference.IsEnum())
@@ -1550,7 +1550,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                         }
                     }
 
-                    parameter = Expression.Parameter(EdmLibHelpers.GetClrType(edmTypeReference, Model, AssemblyProvider), rangeVariable.Name);
+                    parameter = Expression.Parameter(EdmLibHelpers.GetClrType(edmTypeReference, Model, InternalAssembliesResolver), rangeVariable.Name);
                     Contract.Assert(lambdaIt == null, "There can be only one parameter in an Any/All lambda");
                     lambdaIt = parameter;
                 }

@@ -1,18 +1,22 @@
 ﻿// Copyright (c) Microsoft Corporation.  All rights reserved.
 // Licensed under the MIT License.  See License.txt in the project root for license information.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System;
 
 namespace Microsoft.AspNetCore.OData.Query.Expressions
 {
     internal class ExpressionHelperMethods
     {
+        private static MethodInfo _enumerableWhereMethod = GenericMethodOf(_ => Enumerable.Where<int>(default(IEnumerable<int>), default(Func<int, bool>)));
+        private static MethodInfo _countWithPredicateMethod = GenericMethodOf(_ => Queryable.LongCount<int>(default(IQueryable<int>), null));
+        private static MethodInfo _enumerableCountWithPredicateMethod = GenericMethodOf(_ => Enumerable.LongCount<int>(default(IEnumerable<int>), null));
         private static MethodInfo _orderByMethod = GenericMethodOf(_ => Queryable.OrderBy<int, int>(default(IQueryable<int>), default(Expression<Func<int, int>>)));
         private static MethodInfo _enumerableOrderByMethod = GenericMethodOf(_ => Enumerable.OrderBy<int, int>(default(IEnumerable<int>), default(Func<int, int>)));
         private static MethodInfo _orderByDescendingMethod = GenericMethodOf(_ => Queryable.OrderByDescending<int, int>(default(IQueryable<int>), default(Expression<Func<int, int>>)));
@@ -22,13 +26,11 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         private static MethodInfo _thenByDescendingMethod = GenericMethodOf(_ => Queryable.ThenByDescending<int, int>(default(IOrderedQueryable<int>), default(Expression<Func<int, int>>)));
         private static MethodInfo _enumerableThenByDescendingMethod = GenericMethodOf(_ => Enumerable.ThenByDescending<int, int>(default(IOrderedEnumerable<int>), default(Func<int, int>)));
         private static MethodInfo _countMethod = GenericMethodOf(_ => Queryable.LongCount<int>(default(IQueryable<int>)));
-        private static MethodInfo _countWithPredicateMethod = GenericMethodOf(_ => Queryable.LongCount<int>(default(IQueryable<int>), null));
         private static MethodInfo _groupByMethod = GenericMethodOf(_ => Queryable.GroupBy<int, int>(default(IQueryable<int>), default(Expression<Func<int, int>>)));
         private static MethodInfo _aggregateMethod = GenericMethodOf(_ => Queryable.Aggregate<int, int>(default(IQueryable<int>), default(int), default(Expression<Func<int, int, int>>)));
         private static MethodInfo _skipMethod = GenericMethodOf(_ => Queryable.Skip<int>(default(IQueryable<int>), default(int)));
         private static MethodInfo _enumerableSkipMethod = GenericMethodOf(_ => Enumerable.Skip<int>(default(IEnumerable<int>), default(int)));
         private static MethodInfo _whereMethod = GenericMethodOf(_ => Queryable.Where<int>(default(IQueryable<int>), default(Expression<Func<int, bool>>)));
-        private static MethodInfo _enumerableWhereMethod = GenericMethodOf(_ => Enumerable.Where<int>(default(IEnumerable<int>), default(Func<int, bool>)));
 
         private static MethodInfo _queryableEmptyAnyMethod = GenericMethodOf(_ => Queryable.Any<int>(default(IQueryable<int>)));
         private static MethodInfo _queryableNonEmptyAnyMethod = GenericMethodOf(_ => Queryable.Any<int>(default(IQueryable<int>), default(Expression<Func<int, bool>>)));
@@ -48,7 +50,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         private static MethodInfo _enumerableTakeMethod = GenericMethodOf(_ => Enumerable.Take<int>(default(IEnumerable<int>), default(int)));
 
         private static MethodInfo _queryableAsQueryableMethod = GenericMethodOf(_ => Queryable.AsQueryable<int>(default(IEnumerable<int>)));
-        //private static MethodInfo _enumerableAsQueryableMethod = GenericMethodOf(_ => Queryable.AsQueryable<int>(default(IEnumerable<int>)));
+        private static MethodInfo _enumerableAsEnumerableMethod = GenericMethodOf(_ => Enumerable.AsEnumerable<int>(default(IEnumerable<int>)));
 
         private static MethodInfo _toQueryableMethod = GenericMethodOf(_ => ExpressionHelperMethods.ToQueryable<int>(default(int)));
 
@@ -76,7 +78,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         };
 
         private static MethodInfo _enumerableCountMethod = GenericMethodOf(_ => Enumerable.LongCount<int>(default(IEnumerable<int>)));
-        private static MethodInfo _enumerableCountWithPredicateMethod = GenericMethodOf(_ => Enumerable.LongCount<int>(default(IEnumerable<int>), null));
+
+        private static MethodInfo _safeConvertToDecimalMethod = typeof(ExpressionHelperMethods).GetMethod("SafeConvertToDecimal");
 
         public static MethodInfo QueryableOrderByGeneric
         {
@@ -121,11 +124,6 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         public static MethodInfo QueryableCountGeneric
         {
             get { return _countMethod; }
-        }
-
-        public static MethodInfo QueryableCountWithPredicateGeneric
-        {
-            get { return _countWithPredicateMethod; }
         }
 
         public static Dictionary<Type, MethodInfo> QueryableSumGenerics
@@ -188,11 +186,6 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             get { return _whereMethod; }
         }
 
-        public static MethodInfo EnumerableWhereGeneric
-        {
-            get { return _enumerableWhereMethod; }
-        }
-
         public static MethodInfo QueryableSelectGeneric
         {
             get { return _queryableSelectMethod; }
@@ -248,6 +241,10 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             get { return _queryableAsQueryableMethod; }
         }
 
+        public static MethodInfo EnumerableAsEnumerable
+        {
+            get { return _enumerableAsEnumerableMethod; }
+        }
         public static MethodInfo EntityAsQueryable
         {
             get { return _toQueryableMethod; }
@@ -263,9 +260,31 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             get { return _enumerableCountMethod; }
         }
 
-        public static MethodInfo EnumerableCountWithPredicateGeneric
+        public static MethodInfo ConvertToDecimal
         {
-            get { return _enumerableCountWithPredicateMethod; }
+            get { return _safeConvertToDecimalMethod; }
+        }
+
+        public static decimal? SafeConvertToDecimal(object value)
+        {
+            if (value == null || value == DBNull.Value)
+            {
+                return null;
+            }
+
+            Type type = value.GetType();
+            type = Nullable.GetUnderlyingType(type) ?? type;
+            if (type == typeof(short) ||
+                type == typeof(int) ||
+                type == typeof(long) ||
+                type == typeof(decimal) ||
+                type == typeof(double) ||
+                type == typeof(float))
+            {
+                return (decimal?)Convert.ChangeType(value, typeof(decimal), CultureInfo.InvariantCulture);
+            }
+
+            return null;
         }
 
         private static MethodInfo GenericMethodOf<TReturn>(Expression<Func<object, TReturn>> expression)
@@ -283,7 +302,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
             return (lambdaExpression.Body as MethodCallExpression).Method.GetGenericMethodDefinition();
         }
-       
+
         private static Dictionary<Type, MethodInfo> GetQueryableAggregationMethods(string methodName)
         {
             //Sum to not have generic by property method return type so have to generate a table
@@ -294,6 +313,21 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 .Where(m => m.Name == methodName)
                 .Where(m => m.GetParameters().Count() == 2)
                 .ToDictionary(m => m.ReturnType);
+        }
+
+        public static MethodInfo QueryableCountWithPredicateGeneric
+        {
+            get { return _countWithPredicateMethod; }
+        }
+
+        public static MethodInfo EnumerableCountWithPredicateGeneric
+        {
+            get { return _enumerableCountWithPredicateMethod; }
+        }
+
+        public static MethodInfo EnumerableWhereGeneric
+        {
+            get { return _enumerableWhereMethod; }
         }
     }
 }

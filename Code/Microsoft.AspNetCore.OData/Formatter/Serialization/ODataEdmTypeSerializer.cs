@@ -65,7 +65,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
         /// <param name="expectedType">The expected EDM type of the object represented by <paramref name="graph"/>.</param>
         /// <param name="writeContext">The <see cref="ODataSerializerContext"/>.</param>
         /// <returns>The <see cref="ODataValue"/> created.</returns>
-        public virtual ODataValue CreateODataValue(object graph, IEdmTypeReference expectedType, ODataSerializerContext writeContext)
+        public virtual ODataAnnotatable CreateODataValue(object graph, IEdmTypeReference expectedType, ODataSerializerContext writeContext)
         {
             throw Error.NotSupported(SRResources.CreateODataValueNotSupported, GetType().Name);
         }

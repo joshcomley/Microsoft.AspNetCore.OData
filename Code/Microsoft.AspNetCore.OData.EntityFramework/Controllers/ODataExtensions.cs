@@ -87,7 +87,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             //}
             var value = GetDefaultValue(type);
             var jsonSerializer = JsonSerializer.CreateDefault();
-            value = obj.ToObject(type, jsonSerializer);
+            try
+            {
+                value = obj.ToObject(type, jsonSerializer);
+            }
+            catch (Exception e) { }
             return value;
         }
 

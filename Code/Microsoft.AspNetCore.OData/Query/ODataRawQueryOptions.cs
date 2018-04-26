@@ -57,5 +57,10 @@ namespace Microsoft.AspNetCore.OData.Query
         ///  Gets the raw $deltatoken query value from the incoming request Uri if exists.
         /// </summary>
         public string DeltaToken { get; internal set; }
+
+        /// <summary>
+        ///  Gets the raw $apply query value from the incoming request Uri if exists.
+        /// </summary>
+        public string Apply { get; internal set; }
     }
 }

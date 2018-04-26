@@ -15,9 +15,15 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Extensions
                 .Single(m => m.Name == nameof(GetValue) && m.GetGenericArguments().Count() == 1);
         }
 
+
         public static MethodInfo GetValueTypedMethod { get; set; }
 
         public static MethodInfo ValueEqualsTypedMethod { get; set; }
+
+        public static bool IsNull(this JToken token)
+        {
+            return token.Type == JTokenType.Null;
+        }
 
         public static bool ValueEquals(this JToken token, object value, Type valueType)
         {

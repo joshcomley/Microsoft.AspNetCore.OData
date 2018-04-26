@@ -202,7 +202,13 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 InitializeEntity(patchEntity, new List<object>());
                 await OnBeforePostAndPatchAsync(entity, patchEntity, value);
                 await OnBeforePostAsync(entity, patchEntity, value);
+                ModelState.Clear();
                 await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
+                if (!ModelState.IsValid)
+                {
+                    return this.ODataModelStateError();
+                }
+
                 ModelState.Clear();
                 if (!await ValidateEntityAsync(entity, isNew: true))
                 {
@@ -246,11 +252,11 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 .Invoke(this, new[] { entity, validated, path });
         }
 
-        protected virtual void AddModelError<TEntity>(string key, string message, string code)
+        protected virtual void AddModelError<TEntity>(string path, string message, string errorCode)
         {
             var exception = new Exception(message);
-            exception.Source = code;
-            ModelState.AddModelError(key, exception, MetadataProvider.GetMetadataForType(typeof(TEntity)));
+            exception.Source = errorCode;
+            ModelState.AddModelError(path, exception, MetadataProvider.GetMetadataForType(typeof(TEntity)));
         }
 
         public virtual async Task<bool> ValidateEntityAsync<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "", bool isNew = false)
@@ -459,7 +465,12 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         {
             await OnBeforePostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
             await OnBeforePatchAsync(keys, currentDatabaseEntity, patchEntity, value);
+            ModelState.Clear();
             await PatchObjectWithLegalPropertiesAsync(currentDatabaseEntity, patchEntity, value);
+            if (!ModelState.IsValid)
+            {
+                return this.ODataModelStateError();
+            }
             ModelState.Clear();
             if (!await ValidateEntityAsync(currentDatabaseEntity))
             {
@@ -520,124 +531,90 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         protected virtual async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject value)
         {
             await OnBeforeFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
-            await PatchEntityProperties(currentEntity, patchEntity, value);
+            await PatchEntityPropertiesAsync(currentEntity, patchEntity, value, typeof(T));
             await OnAfterFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
         }
 
-        protected virtual async Task PatchEntityProperties(object currentEntity, object patchEntity, JObject value)
+        protected virtual async Task PatchEntityPropertiesAsync(object currentEntity, object patchEntity, JObject value, Type entityType, string path = "")
         {
+            if (PatchEntityPropertiesAsyncMethod == null)
+            {
+                PatchEntityPropertiesAsyncMethod = GetType().GetRuntimeMethods().SingleOrDefault(m => m.Name == nameof(PatchEntityPropertiesAsync) && m.GetGenericArguments().Length == 1);
+            }
+            await (Task)PatchEntityPropertiesAsyncMethod.MakeGenericMethod(entityType)
+                .Invoke(this, new object[] { currentEntity, patchEntity, value, path });
+        }
+
+        public MethodInfo PatchEntityPropertiesAsyncMethod { get; set; }
+
+        protected virtual async Task PatchEntityPropertiesAsync<TEntity>(object currentEntity, object patchEntity,
+            JObject value, string path)
+        {
+            var originalPath = path;
             foreach (var property in value)
             {
                 if (!ShouldPatchEntityProperty(currentEntity, patchEntity, property.Key))
                 {
                     continue;
                 }
-                // If we don't allow get on this property in OData, don't allow set
-                var entityType = currentEntity.GetType();
-                if (!ModelAccessor.EdmModel.HasProperty(entityType, property.Key))
-                    continue;
-                var propertyInfo = entityType.GetProperty(property.Key);
-                // Set the value to the value of the same property on the patch entity
-                var patchedValue = propertyInfo.GetValue(patchEntity);
-                if (typeof(IEnumerable).IsAssignableFrom(propertyInfo.PropertyType) &&
-                    !typeof(string).IsAssignableFrom(propertyInfo.PropertyType)
-                )
-                {
-                    var childEntityType = propertyInfo.PropertyType.GetGenericArguments().First();
-                    var methodInfo = GetType().GetTypeInfo().GetRuntimeMethods()
-                        .SingleOrDefault(m => m.Name == nameof(GetAndInclude))
-                        .MakeGenericMethod(entityType);
-                    var invoke = methodInfo
-                        .Invoke(this, new object[] { currentEntity, propertyInfo.Name });
-                    //var submittedList = (IList)currentDatabaseEntity.GetPropertyValue(propertyInfo.Name);
-                    var submittedList = (IList)patchedValue;
-                    //var patchedList = (IList)patchedValue;
-                    IList dbList = null;
-                    if (invoke != null)
-                    {
-                        dbList = (IList)invoke.GetPropertyValue(propertyInfo.Name);
-                    }
-                    var entityKey = Crud.Unsecured.Context.Model.FindEntityType(childEntityType).GetKeys()
-                        .Single(k => k.IsPrimaryKey());
-                    if (submittedList != null && dbList == null)
-                    {
-                        dbList = submittedList;
-                    }
-                    else if (submittedList != null && dbList != null)
-                    {
-                        var toRemove = new List<object>();
-                        foreach (var dbChild in dbList)
-                        {
-                            var found = false;
-                            var i = 0;
-                            foreach (var submittedChild in submittedList)
-                            {
-                                var match = true;
-                                foreach (var keyProperty in entityKey.Properties)
-                                {
-                                    var dbValue = dbChild.GetPropertyValue(keyProperty.Name);
-                                    var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
-                                    if (!Equals(dbValue, submittedValue))
-                                    {
-                                        match = false;
-                                        break;
-                                    }
-                                }
-                                if (match)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (!found)
-                            {
-                                toRemove.Add(dbChild);
-                            }
-                        }
-                        foreach (var itemToRemove in toRemove)
-                        {
-                            dbList.Remove(itemToRemove);
-                        }
-                        foreach (var submittedChild in submittedList)
-                        {
-                            foreach (var keyProperty in entityKey.Properties)
-                            {
-                                var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
-                                if (submittedValue.IsDefaultValue())
-                                {
-                                    dbList.Add(submittedChild);
-                                    break;
-                                }
-                            }
 
-                        }
-                    }
-                    //newList.Add()
-                    if (dbList != null)
+                var entityType = typeof(TEntity);
+                // If we don't allow get on this property in OData, don't allow set
+                if (!ModelAccessor.EdmModel.HasProperty(entityType, property.Key))
+                {
+                    continue;
+                }
+                var propertyInfo = entityType.GetProperty(property.Key);
+                path = $"{originalPath}.{propertyInfo.Name}".TrimStart('.');
+                // Set the value to the value of the same property on the patch entity
+                var propertyType = propertyInfo.PropertyType;
+                var canBeNull = !propertyType.IsValueType || Nullable.GetUnderlyingType(propertyType) != null;
+                if (!canBeNull && value[propertyInfo.Name].IsNull())
+                {
+                    AddModelError<TEntity>(path, "Value cannot be empty", "DisallowedNull");
+                }
+                if (patchEntity != null)
+                {
+                    var patchedValue = propertyInfo.GetValue(patchEntity);
+                    if (typeof(IEnumerable).IsAssignableFrom(propertyInfo.PropertyType) &&
+                        !typeof(string).IsAssignableFrom(propertyInfo.PropertyType)
+                    )
                     {
-                        foreach (var child in dbList)
+                        var childEntityType = propertyInfo.PropertyType.GetGenericArguments().First();
+                        var methodInfo = GetType().GetTypeInfo().GetRuntimeMethods()
+                            .SingleOrDefault(m => m.Name == nameof(GetAndInclude))
+                            .MakeGenericMethod(entityType);
+                        var invoke = methodInfo
+                            .Invoke(this, new object[] { currentEntity, propertyInfo.Name });
+                        //var submittedList = (IList)currentDatabaseEntity.GetPropertyValue(propertyInfo.Name);
+                        var submittedList = (IList)patchedValue;
+                        //var patchedList = (IList)patchedValue;
+                        IList dbList = null;
+                        if (invoke != null)
                         {
-                            //var newChild = Activator.CreateInstance(childEntityType);
-                            var isNew = false;
-                            foreach (var keyProperty in entityKey.Properties)
+                            dbList = (IList)invoke.GetPropertyValue(propertyInfo.Name);
+                        }
+                        var entityKey = Crud.Unsecured.Context.Model.FindEntityType(childEntityType.FullName).GetKeys()
+                            .Single(k => k.IsPrimaryKey());
+                        if (submittedList != null && dbList == null)
+                        {
+                            dbList = submittedList;
+                        }
+                        else if (submittedList != null && dbList != null)
+                        {
+                            var toRemove = new List<object>();
+                            foreach (var dbChild in dbList)
                             {
-                                var propertyValue = child.GetPropertyValue(keyProperty.Name);
-                                if (propertyValue.IsDefaultValue())
-                                {
-                                    isNew = true;
-                                }
-                            }
-                            var index = -1;
-                            if (!isNew)
-                            {
-                                for (var i = 0; i < submittedList.Count; i++)
+                                var found = false;
+                                var i = 0;
+                                foreach (var submittedChild in submittedList)
                                 {
                                     var match = true;
                                     foreach (var keyProperty in entityKey.Properties)
                                     {
-                                        var localValue = child.GetPropertyValue(keyProperty.Name);
-                                        var submittedValue = submittedList[i].GetPropertyValue(keyProperty.Name);
-                                        if (!Equals(localValue, submittedValue))
+                                        var dbValue = dbChild.GetPropertyValue(keyProperty.Name);
+                                        var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
+                                        if (!Equals(dbValue, submittedValue))
                                         {
                                             match = false;
                                             break;
@@ -645,32 +622,93 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                     }
                                     if (match)
                                     {
-                                        index = i;
+                                        found = true;
                                         break;
                                     }
                                 }
+                                if (!found)
+                                {
+                                    toRemove.Add(dbChild);
+                                }
                             }
-                            else
+                            foreach (var itemToRemove in toRemove)
                             {
-                                index = submittedList.IndexOf(child);
+                                dbList.Remove(itemToRemove);
                             }
-                            await PatchEntityProperties(child, submittedList[index], property.Value[index] as JObject);
-                        }
-                        propertyInfo.SetValue(currentEntity, dbList);
-                    }
-                    //var edmType = ModelAccessor.EdmModel.GetEdmType(childEntityType) as EdmEntityType;
-                    //if (edmType != null)
-                    //{
+                            foreach (var submittedChild in submittedList)
+                            {
+                                foreach (var keyProperty in entityKey.Properties)
+                                {
+                                    var submittedValue = submittedChild.GetPropertyValue(keyProperty.Name);
+                                    if (submittedValue.IsDefaultValue())
+                                    {
+                                        dbList.Add(submittedChild);
+                                        break;
+                                    }
+                                }
 
-                    //}
-                    //foreach (var child in property.Value)
-                    //{
-                    //    var jobject = child as JObject;
-                    //}
-                }
-                else
-                {
-                    propertyInfo.SetValue(currentEntity, patchedValue);
+                            }
+                        }
+                        //newList.Add()
+                        if (dbList != null)
+                        {
+                            foreach (var child in dbList)
+                            {
+                                //var newChild = Activator.CreateInstance(childEntityType);
+                                var isNew = false;
+                                foreach (var keyProperty in entityKey.Properties)
+                                {
+                                    var propertyValue = child.GetPropertyValue(keyProperty.Name);
+                                    if (propertyValue.IsDefaultValue())
+                                    {
+                                        isNew = true;
+                                    }
+                                }
+                                var index = -1;
+                                if (!isNew)
+                                {
+                                    for (var i = 0; i < submittedList.Count; i++)
+                                    {
+                                        var match = true;
+                                        foreach (var keyProperty in entityKey.Properties)
+                                        {
+                                            var localValue = child.GetPropertyValue(keyProperty.Name);
+                                            var submittedValue = submittedList[i].GetPropertyValue(keyProperty.Name);
+                                            if (!Equals(localValue, submittedValue))
+                                            {
+                                                match = false;
+                                                break;
+                                            }
+                                        }
+                                        if (match)
+                                        {
+                                            index = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    index = submittedList.IndexOf(child);
+                                }
+                                await PatchEntityPropertiesAsync(child, submittedList[index], property.Value[index] as JObject, childEntityType, $"{path}.{propertyInfo.Name}[{index}]".TrimStart('.'));
+                            }
+                            propertyInfo.SetValue(currentEntity, dbList);
+                        }
+                        //var edmType = ModelAccessor.EdmModel.GetEdmType(childEntityType) as EdmEntityType;
+                        //if (edmType != null)
+                        //{
+
+                        //}
+                        //foreach (var child in property.Value)
+                        //{
+                        //    var jobject = child as JObject;
+                        //}
+                    }
+                    else
+                    {
+                        propertyInfo.SetValue(currentEntity, patchedValue);
+                    }
                 }
             }
         }

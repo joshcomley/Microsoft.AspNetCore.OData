@@ -27,6 +27,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
     {
         public IServiceProvider RequestContainer { get; }
         internal static readonly MethodInfo StringCompareMethodInfo = typeof(string).GetMethod("Compare", new[] { typeof(string), typeof(string), typeof(StringComparison) });
+        internal static readonly string DictionaryStringObjectIndexerName = typeof(Dictionary<string, object>).GetDefaultMembers()[0].Name;
 
         internal static readonly Expression NullConstant = Expression.Constant(null);
         internal static readonly Expression FalseConstant = Expression.Constant(false);
@@ -58,27 +59,41 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         internal ODataQuerySettings QuerySettings { get; set; }
 
-        internal IAssemblyProvider AssemblyProvider { get; set; }
+        internal IAssemblyProvider InternalAssembliesResolver { get; set; }
+
+        /// <summary>
+        /// Base query used for the binder.
+        /// </summary>
+        internal IQueryable BaseQuery;
+
+        /// <summary>
+        /// Flattened list of properties from base query, for case when binder is applied for aggregated query.
+        /// </summary>
+        internal IDictionary<string, Expression> FlattenedPropertyContainer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ExpressionBinderBase"/> class.
         /// </summary>
-        protected ExpressionBinderBase(IServiceProvider serviceProvider)
+        /// <param name="requestContainer">The request container.</param>
+        protected ExpressionBinderBase(IServiceProvider requestContainer)
         {
-            //Contract.Assert(requestContainer != null);
+            Contract.Assert(requestContainer != null);
+            RequestContainer = requestContainer;
 
-            RequestContainer = serviceProvider;
-            QuerySettings = new ODataQuerySettings();//RequestContainer.GetRequiredService<ODataQuerySettings>());
-            Model = RequestContainer.GetRequiredService<IEdmModel>();
-            AssemblyProvider = RequestContainer.GetRequiredService<IAssemblyProvider>();
+            QuerySettings = new ODataQuerySettings();// requestContainer.GetRequiredService<ODataQuerySettings>();
+            Model = requestContainer.GetRequiredService<IEdmModel>();
+
+            // The IWebApiAssembliesResolver service is internal and can only be injected by WebApi.
+            // This code path may be used in the cases when the service container available
+            // but may not contain an instance of IWebApiAssembliesResolver.
+            InternalAssembliesResolver = requestContainer.GetRequiredService<IAssemblyProvider>();
         }
 
-        internal ExpressionBinderBase(
-            IEdmModel model, IAssemblyProvider assemblyProvider, ODataQuerySettings querySettings, IServiceProvider serviceProvider)
+        internal ExpressionBinderBase(IEdmModel model, IServiceProvider requestContainer, ODataQuerySettings querySettings)
             : this(model, querySettings)
         {
-            AssemblyProvider = assemblyProvider;
-            RequestContainer = serviceProvider;
+            RequestContainer = requestContainer;
+            InternalAssembliesResolver = requestContainer.GetRequiredService<IAssemblyProvider>();
         }
 
         internal ExpressionBinderBase(IEdmModel model, ODataQuerySettings querySettings)
@@ -102,9 +117,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             Type rightUnderlyingType = Nullable.GetUnderlyingType(right.Type) ?? right.Type;
 
             // Convert to integers unless Enum type is required
-            if ((leftUnderlyingType.GetTypeInfo().IsEnum || rightUnderlyingType.GetTypeInfo().IsEnum) && binaryOperator != BinaryOperatorKind.Has)
+            if ((TypeHelper.IsEnum(leftUnderlyingType) || TypeHelper.IsEnum(rightUnderlyingType)) && binaryOperator != BinaryOperatorKind.Has)
             {
-                Type enumType = leftUnderlyingType.GetTypeInfo().IsEnum ? leftUnderlyingType : rightUnderlyingType;
+                Type enumType = TypeHelper.IsEnum(leftUnderlyingType) ? leftUnderlyingType : rightUnderlyingType;
                 Type enumUnderlyingType = Enum.GetUnderlyingType(enumType);
                 left = ConvertToEnumUnderlyingType(left, enumType, enumUnderlyingType);
                 right = ConvertToEnumUnderlyingType(right, enumType, enumUnderlyingType);
@@ -204,7 +219,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         internal Expression CreateConvertExpression(ConvertNode convertNode, Expression source)
         {
-            Type conversionType = EdmLibHelpers.GetClrType(convertNode.TypeReference, Model, AssemblyProvider);
+            Type conversionType = EdmLibHelpers.GetClrType(convertNode.TypeReference, Model, InternalAssembliesResolver);
 
             if (conversionType == typeof(bool?) && source.Type == typeof(bool))
             {
@@ -274,7 +289,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
                 Expression convertedExpression = null;
 
-                if (sourceType.GetTypeInfo().IsEnum)
+                if (TypeHelper.IsEnum(sourceType))
                 {
                     // we handle enum conversions ourselves
                     convertedExpression = source;
@@ -305,11 +320,13 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                             else if (sourceType == typeof(XElement))
                             {
                                 convertedExpression = Expression.Call(source, "ToString", typeArguments: null, arguments: null);
-                            }/* // TODO: 
+                            }
+#if NETFX // System.Data.Linq.Binary is only supported in the AspNet version.
                             else if (sourceType == typeof(Binary))
                             {
                                 convertedExpression = Expression.Call(source, "ToArray", typeArguments: null, arguments: null);
-                            }*/
+                            }
+#endif
                             break;
 
                         default:
@@ -458,6 +475,64 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             return expression;
         }
 
+        internal string GetFullPropertyPath(SingleValueNode node)
+        {
+            string path = null;
+            SingleValueNode parent = null;
+            switch (node.Kind)
+            {
+                case QueryNodeKind.SingleComplexNode:
+                    path = ((SingleComplexNode)node).Property.Name;
+                    break;
+                case QueryNodeKind.SingleValuePropertyAccess:
+                    var propertyNode = ((SingleValuePropertyAccessNode)node);
+                    path = propertyNode.Property.Name;
+                    parent = propertyNode.Source;
+                    break;
+                case QueryNodeKind.SingleNavigationNode:
+                    var navNode = ((SingleNavigationNode)node);
+                    path = navNode.NavigationProperty.Name;
+                    parent = navNode.Source;
+                    break;
+            }
+
+            if (parent != null)
+            {
+                var parentPath = GetFullPropertyPath(parent);
+                if (parentPath != null)
+                {
+                    path = parentPath + "\\" + path;
+                }
+            }
+
+            return path;
+        }
+
+        /// <summary>
+        /// Gets property for dynamic properties dictionary.
+        /// </summary>
+        /// <param name="openNode"></param>
+        /// <returns>Returns CLR property for dynamic properties container.</returns>
+        protected PropertyInfo GetDynamicPropertyContainer(SingleValueOpenPropertyAccessNode openNode)
+        {
+            IEdmStructuredType edmStructuredType;
+            IEdmTypeReference edmTypeReference = openNode.Source.TypeReference;
+            if (edmTypeReference.IsEntity())
+            {
+                edmStructuredType = edmTypeReference.AsEntity().EntityDefinition();
+            }
+            else if (edmTypeReference.IsComplex())
+            {
+                edmStructuredType = edmTypeReference.AsComplex().ComplexDefinition();
+            }
+            else
+            {
+                throw Error.NotSupported(SRResources.QueryNodeBindingNotSupported, openNode.Kind, typeof(FilterBinder).Name);
+            }
+
+            return EdmLibHelpers.GetDynamicPropertyDictionary(edmStructuredType, Model);
+        }
+
         private static Expression CheckIfArgumentsAreNull(Expression[] arguments)
         {
             if (arguments.Any(arg => arg == NullConstant))
@@ -511,6 +586,154 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
             Expression[] arguments = new[] { left, flag };
             return MakeFunctionCall(ClrCanonicalFunctions.HasFlag, arguments);
+        }
+
+        /// <summary>
+        /// Analyze previous query and extract grouped properties.
+        /// </summary>
+        /// <param name="source"></param>
+        protected void EnsureFlattenedPropertyContainer(ParameterExpression source)
+        {
+            if (this.BaseQuery != null)
+            {
+                this.FlattenedPropertyContainer = this.FlattenedPropertyContainer ?? this.GetFlattenedProperties(source);
+            }
+        }
+
+        internal IDictionary<string, Expression> GetFlattenedProperties(ParameterExpression source)
+        {
+            if (this.BaseQuery == null)
+            {
+                return null;
+            }
+
+            if (!typeof(GroupByWrapper).IsAssignableFrom(BaseQuery.ElementType))
+            {
+                return null;
+            }
+
+            var expression = BaseQuery.Expression as MethodCallExpression;
+            if (expression == null)
+            {
+                return null;
+            }
+
+            // After $apply we could have other clauses, like $filter, $orderby etc.
+            // Skip of filter expressions
+            while (expression.Method.Name == "Where")
+            {
+                expression = expression.Arguments.FirstOrDefault() as MethodCallExpression;
+            }
+
+            if (expression == null)
+            {
+                return null;
+            }
+
+            var result = new Dictionary<string, Expression>();
+            CollectAssigments(result, Expression.Property(source, "GroupByContainer"), ExtractContainerExpression(expression.Arguments.FirstOrDefault() as MethodCallExpression, "GroupByContainer"));
+            CollectAssigments(result, Expression.Property(source, "Container"), ExtractContainerExpression(expression, "Container"));
+
+            return result;
+        }
+
+        private static MemberInitExpression ExtractContainerExpression(MethodCallExpression expression, string containerName)
+        {
+            var memberInitExpression = ((expression.Arguments[1] as UnaryExpression).Operand as LambdaExpression).Body as MemberInitExpression;
+            if (memberInitExpression != null)
+            {
+                var containerAssigment = memberInitExpression.Bindings.FirstOrDefault(m => m.Member.Name == containerName) as MemberAssignment;
+                if (containerAssigment != null)
+                {
+                    return containerAssigment.Expression as MemberInitExpression;
+                }
+            }
+            return null;
+        }
+
+        private static void CollectAssigments(IDictionary<string, Expression> flattenPropertyContainer, Expression source, MemberInitExpression expression, string prefix = null)
+        {
+            if (expression == null)
+            {
+                return;
+            }
+
+            string nameToAdd = null;
+            Type resultType = null;
+            MemberInitExpression nextExpression = null;
+            Expression nestedExpression = null;
+            foreach (var expr in expression.Bindings.OfType<MemberAssignment>())
+            {
+                var initExpr = expr.Expression as MemberInitExpression;
+                if (initExpr != null && expr.Member.Name == "Next")
+                {
+                    nextExpression = initExpr;
+                }
+                else if (expr.Member.Name == "Name")
+                {
+                    nameToAdd = (expr.Expression as ConstantExpression).Value as string;
+                }
+                else if (expr.Member.Name == "Value" || expr.Member.Name == "NestedValue")
+                {
+                    resultType = expr.Expression.Type;
+                    if (resultType == typeof(object) && expr.Expression.NodeType == ExpressionType.Convert)
+                    {
+                        resultType = ((UnaryExpression)expr.Expression).Operand.Type;
+                    }
+
+                    if (typeof(GroupByWrapper).IsAssignableFrom(resultType))
+                    {
+                        nestedExpression = expr.Expression;
+                    }
+                }
+            }
+
+            if (prefix != null)
+            {
+                nameToAdd = prefix + "\\" + nameToAdd;
+            }
+
+            if (typeof(GroupByWrapper).IsAssignableFrom(resultType))
+            {
+                flattenPropertyContainer.Add(nameToAdd, Expression.Property(source, "NestedValue"));
+            }
+            else
+            {
+                flattenPropertyContainer.Add(nameToAdd, Expression.Convert(Expression.Property(source, "Value"), resultType));
+            }
+
+            if (nextExpression != null)
+            {
+                CollectAssigments(flattenPropertyContainer, Expression.Property(source, "Next"), nextExpression, prefix);
+            }
+
+            if (nestedExpression != null)
+            {
+                var nestedAccessor = ((nestedExpression as MemberInitExpression).Bindings.First() as MemberAssignment).Expression as MemberInitExpression;
+                var newSource = Expression.Property(Expression.Property(source, "NestedValue"), "GroupByContainer");
+                CollectAssigments(flattenPropertyContainer, newSource, nestedAccessor, nameToAdd);
+            }
+        }
+
+        /// <summary>
+        /// Gets expression for property from previously aggregated query
+        /// </summary>
+        /// <param name="propertyPath"></param>
+        /// <returns>Returns null if no aggregations were used so far</returns>
+        protected Expression GetFlattenedPropertyExpression(string propertyPath)
+        {
+            if (FlattenedPropertyContainer == null)
+            {
+                return null;
+            }
+
+            Expression expression;
+            if (FlattenedPropertyContainer.TryGetValue(propertyPath, out expression))
+            {
+                return expression;
+            }
+
+            throw new ODataException("Error.Format(SRResources.PropertyOrPathWasRemovedFromContext, propertyPath)");
         }
 
         private Expression GetProperty(Expression source, string propertyName)
@@ -583,7 +806,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
         private static Expression ConvertToDateTimeRelatedConstExpression(Expression source)
         {
             var parameterizedConstantValue = ExtractParameterizedConstant(source);
-            if (parameterizedConstantValue != null && source.Type.IsNullable())
+            if (parameterizedConstantValue != null && TypeHelper.IsNullable(source.Type))
             {
                 var dateTimeOffset = parameterizedConstantValue as DateTimeOffset?;
                 if (dateTimeOffset != null)
@@ -660,7 +883,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 MemberExpression memberAccess = expression as MemberExpression;
                 Contract.Assert(memberAccess != null);
 
-                var propertyInfo = memberAccess.Member as PropertyInfo;
+                PropertyInfo propertyInfo = memberAccess.Member as PropertyInfo;
                 if (propertyInfo != null && propertyInfo.GetMethod.IsStatic)
                 {
                     return propertyInfo.GetValue(new object());
@@ -703,7 +926,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         internal static bool IsNullable(Type t)
         {
-            if (!t.GetTypeInfo().IsValueType || (t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>)))
+            if (!TypeHelper.IsValueType(t) || (TypeHelper.IsGenericType(t) && t.GetGenericTypeDefinition() == typeof(Nullable<>)))
             {
                 return true;
             }

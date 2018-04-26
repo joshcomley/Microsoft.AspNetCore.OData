@@ -110,7 +110,7 @@ namespace Microsoft.AspNetCore.OData.Formatter
                 // TODO: 1604 Convert webapi.odata's ODataPath to ODL's ODataPath, or use ODL's ODataPath.
                 SelectAndExpand = Request.ODataFeature().SelectExpandClause,
                 // TODO: Support $apply
-                //Apply = Request.ODataFeature().ApplyClause,
+                Apply = Request.ODataFeature().ApplyClause,
                 Path = (path == null || IsOperationPath(path)) ? null : path.ODLPath,
             };
 

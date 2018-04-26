@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Common;
 using Microsoft.AspNetCore.OData.Extensions;
+using Microsoft.AspNetCore.OData.Query.Expressions;
 using Microsoft.OData;
 using Microsoft.OData.Edm;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,6 +101,10 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
             else if (typeof(IEdmModel).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
             {
                 return provider.GetRequiredService<ODataMetadataSerializer>();
+            }
+            else if (typeof(IEnumerable<DynamicTypeWrapper>).IsAssignableFrom(type))
+            {
+                return new DynamicTypeSerializer();
             }
 
             // if it is not a special type, assume it has a corresponding EdmType.
