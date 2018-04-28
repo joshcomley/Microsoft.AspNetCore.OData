@@ -9,8 +9,8 @@
     <PackageReference Include="Brandless" Version="0.0.11" />
     <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10011" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.2.0.1-preview4-t001" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.2.0.1-preview4-t001" />
   </ItemGroup>
 
   <ItemGroup>

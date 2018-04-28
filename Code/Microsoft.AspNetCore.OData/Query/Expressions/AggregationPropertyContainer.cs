@@ -50,10 +50,10 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             {
                 return (GroupByWrapper)this.Value;
             }
-            set
-            {
-                Value = value;
-            }
+            //set
+            //{
+            //    Value = value;
+            //}
         }
 
         public AggregationPropertyContainer Next { get; set; }
@@ -143,7 +143,41 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             }
             else
             {
-                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Value"), Expression.Convert(property.Value, typeof(object))));
+                string prop = null;
+                if (property.Value.Type == typeof(int))
+                {
+                    prop = "IntValue";
+                }
+                else if (property.Value.Type == typeof(short))
+                {
+                    prop = "ShortValue";
+                }
+                else if (property.Value.Type == typeof(long))
+                {
+                    prop = "LongValue";
+                }
+                else if (property.Value.Type == typeof(decimal))
+                {
+                    prop = "DecimalValue";
+                }
+                else if (property.Value.Type == typeof(string))
+                {
+                    prop = "StringValue";
+                }
+                else if (property.Value.Type == typeof(bool))
+                {
+                    prop = "BooleanValue";
+                }
+                else if (property.Value.Type == typeof(DateTime))
+                {
+                    prop = "DateTimeValue";
+                }
+                else if (property.Value.Type == typeof(DateTimeOffset))
+                {
+                    prop = "DateTimeOffsetValue";
+                }
+                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("ValueProperty"), Expression.Constant(prop)));
+                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty(prop), Expression.Convert(property.Value, property.Value.Type)));
                 //memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Other"), property.Value));
             }
 

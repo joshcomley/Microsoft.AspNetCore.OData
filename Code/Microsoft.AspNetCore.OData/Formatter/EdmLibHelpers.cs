@@ -539,7 +539,7 @@ namespace Microsoft.AspNetCore.OData.Formatter
                     CultureInfo.InvariantCulture,
                     "{0}Of{1}",
                     type.Name.Replace('`', '_'),
-                    String.Join("_", type.GetGenericArguments().Select(t => MangleClrTypeName(t))));
+                    String.Join("_", type.GetGenericArguments().Select(MangleClrTypeName)));
             }
         }
 

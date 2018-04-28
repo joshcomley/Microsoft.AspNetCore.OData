@@ -6,9 +6,9 @@ using Microsoft.OData;
 
 namespace Microsoft.AspNetCore.OData.Formatter.Serialization
 {
-    public class DynamicTypeSerializer : ODataSerializer
+    public class ODataDynamicTypeSerializer : ODataSerializer
     {
-        public DynamicTypeSerializer() : base(ODataPayloadKind.Collection)
+        public ODataDynamicTypeSerializer() : base(ODataPayloadKind.Collection)
         {
         }
 
@@ -17,11 +17,9 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
             var pageResult = graph as PageResult<object>;
             var results = pageResult.Items.ToList();
             foreach (var item in results)
-            {
-                var g = item as NoGroupByAggregationWrapper;
-                var x = g.Container.Name;
-                var y = g.Container.Other;
-                foreach (var value in g.Values)
+            {   
+                var groupByWrapper = item as GroupByWrapper;
+                foreach (var value in groupByWrapper.Values)
                 {
                     var oDataProperty = new ODataProperty
                     {

@@ -104,7 +104,8 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
             }
             else if (typeof(IEnumerable<DynamicTypeWrapper>).IsAssignableFrom(type))
             {
-                return new DynamicTypeSerializer();
+                return provider.GetRequiredService<ODataResourceSetSerializer>();
+                //return new ODataDynamicTypeSerializer();
             }
 
             // if it is not a special type, assume it has a corresponding EdmType.

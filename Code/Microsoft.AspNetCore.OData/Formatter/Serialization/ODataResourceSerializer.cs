@@ -62,12 +62,20 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
                 throw Error.ArgumentNull("writeContext");
             }
 
-            IEdmTypeReference edmType = writeContext.GetEdmType(graph, type);
-            Contract.Assert(edmType != null);
-
             IEdmNavigationSource navigationSource = writeContext.NavigationSource;
-            ODataWriter writer = messageWriter.CreateODataResourceWriter(navigationSource, edmType.ToStructuredType());
-            await WriteObjectInlineAsync(graph, edmType, writer, writeContext);
+            if (navigationSource == null)
+            {
+                throw new SerializationException(SRResources.NavigationSourceMissingDuringSerialization);
+            }
+
+            var path = writeContext.Path;
+            if (path == null)
+            {
+                throw new SerializationException(SRResources.ODataPathMissing);
+            }
+
+            ODataWriter writer = messageWriter.CreateODataResourceWriter(navigationSource, path.EdmType as IEdmEntityType);
+            await WriteObjectInlineAsync(graph, navigationSource.EntityType().ToEdmTypeReference(isNullable: false), writer, writeContext);
             writer.Flush();
         }
 
@@ -152,51 +160,67 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
         {
             var properties = new List<ODataProperty>();
             var dynamicObject = graph as DynamicTypeWrapper;
-            foreach (var prop in graph.GetType().GetProperties())
+            var entityProperties = entityType.Properties().ToDictionary(p => p.Name);
+            foreach (var keyValue in dynamicObject.Values)
             {
                 object value;
                 ODataProperty property = null;
-                if (dynamicObject.TryGetPropertyValue(prop.Name, out value))
+                if (entityProperties.ContainsKey(keyValue.Key))
                 {
-                    bool isNavigationProperty = false;
-                    if (navigationProperties != null)
+                    var prop = entityProperties[keyValue.Key];
+                    if (dynamicObject.TryGetPropertyValue(prop.Name, out value))
                     {
-                        if (entityType != null)
+                        bool isNavigationProperty = false;
+                        if (navigationProperties != null)
                         {
-                            var navigationProperty =
-                                entityType.NavigationProperties().FirstOrDefault(p => p.Name.Equals(prop.Name));
-                            if (navigationProperty != null)
+                            if (entityType != null)
                             {
-                                navigationProperties.Add(navigationProperty.Type, value);
-                                isNavigationProperty = true;
+                                var navigationProperty =
+                                    entityType.NavigationProperties().FirstOrDefault(p => p.Name.Equals(prop.Name));
+                                if (navigationProperty != null)
+                                {
+                                    navigationProperties.Add(navigationProperty.Type, value);
+                                    isNavigationProperty = true;
+                                }
+                            }
+                        }
+
+                        if (!isNavigationProperty)
+                        {
+                            if (value != null && value.GetType().IsDynamicTypeWrapper())
+                            {
+                                property = new ODataProperty
+                                {
+                                    Name = prop.Name,
+                                    Value = new ODataResource
+                                    {
+                                        Properties = CreateODataPropertiesFromDynamicType(entityType, value)
+                                    }
+                                };
+                            }
+                            else
+                            {
+                                property = new ODataProperty
+                                {
+                                    Name = prop.Name,
+                                    Value = value
+                                };
                             }
                         }
                     }
-
-                    if (!isNavigationProperty)
+                }
+                else
+                {
+                    property = new ODataProperty
                     {
-                        if (value != null && EdmLibHelpers.IsDynamicTypeWrapper(value.GetType()))
-                        {
-                            property = new ODataProperty
-                            {
-                                Name = prop.Name,
-                                Value = new ODataResource
-                                {
-                                    Properties = CreateODataPropertiesFromDynamicType(entityType, value)
-                                }
-                            };
-                        }
-                        else
-                        {
-                            property = new ODataProperty
-                            {
-                                Name = prop.Name,
-                                Value = value
-                            };
-                        }
+                        Name = keyValue.Key,
+                        Value = keyValue.Value,
+                    };
+                }
 
-                        properties.Add(property);
-                    }
+                if (property != null)
+                {
+                    properties.Add(property);
                 }
             }
             return properties;
@@ -235,6 +259,13 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
              IEdmTypeReference expectedType)
         {
             Contract.Assert(writeContext != null);
+
+
+            if (graph.GetType().IsDynamicTypeWrapper())
+            {
+                await WriteDynamicTypeEntry(graph, writer, expectedType, writeContext);
+                return;
+            }
 
             IEdmStructuredTypeReference structuredType = GetResourceType(graph, writeContext);
             var selectExpandWrapper = graph as ISelectExpandWrapper;

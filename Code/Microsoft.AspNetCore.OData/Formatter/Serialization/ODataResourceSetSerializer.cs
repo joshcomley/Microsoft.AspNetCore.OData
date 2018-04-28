@@ -49,7 +49,7 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
 
             IEdmEntitySetBase entitySet = writeContext.NavigationSource as IEdmEntitySetBase;
 
-            IEdmTypeReference resourceSetType = writeContext.GetEdmType(graph, type);
+            IEdmTypeReference resourceSetType = writeContext.Path.EdmType.ToEdmTypeReference(false);// writeContext.GetEdmType(graph, type);
             Contract.Assert(resourceSetType != null);
 
             IEdmStructuredTypeReference resourceType = GetResourceType(resourceSetType);

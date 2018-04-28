@@ -183,7 +183,6 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
         public class NamedProperty<T> : PropertyContainer
         {
-            private T _value;
             private string _name;
 
             public string Name
@@ -194,11 +193,23 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
 
             public T Value
             {
-                get => _value;
-                set => _value = value;
+                get
+                {
+                    return (T)GetType().GetProperty(ValueProperty).GetValue(this);
+                }
             }
 
-            public object Other { get; set; }
+            public string ValueProperty { get; set; }
+            public long LongValue { get; set; }
+            public int IntValue { get; set; }
+            public decimal DecimalValue { get; set; }
+            public short ShortValue { get; set; }
+            public string StringValue { get; set; }
+            public string DateTimeValue { get; set; }
+            public string DateTimeOffsetValue { get; set; }
+            public string BooleanValue { get; set; }
+
+
             public bool AutoSelected { get; set; }
 
             public override void ToDictionaryCore(Dictionary<string, object> dictionary, IPropertyMapper propertyMapper,

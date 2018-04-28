@@ -282,11 +282,11 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                                 expression.Method, expression.Expression, propertyExpression.Type));
                         }
 
-                        //var sumMethod = typeof(Enumerable)
-                        //    .GetMethods(BindingFlags.Static | BindingFlags.Public)
-                        //    .FirstOrDefault(m => m.Name == "Sum" && m.GetParameters().Count() == 2)
-                        //    .MakeGenericMethod(this._elementType);
-                        var sumMethod = sumGenericMethod.MakeGenericMethod(this._elementType);
+                        var sumMethod = typeof(Enumerable)
+                            .GetMethods(BindingFlags.Static | BindingFlags.Public)
+                            .FirstOrDefault(m => m.Name == "Sum" && m.GetParameters().Count() == 2)
+                            .MakeGenericMethod(this._elementType);
+                        //var sumMethod = sumGenericMethod.MakeGenericMethod(this._elementType);
                         aggregationExpression = Expression.Call(null, sumMethod, accum, propertyLambda);
 
                         // For Dynamic properties cast back to object
@@ -494,8 +494,9 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             else
             {
                 // We do not have properties to aggregate
-                // .GroupBy($it => new NoGroupByWrapper())
-                groupLambda = Expression.Lambda(Expression.New(this._groupByClrType), this._lambdaParameter);
+                // .GroupBy($it => 0)
+                _groupByClrType = typeof(int);
+                groupLambda = Expression.Lambda(Expression.Constant(0), this._lambdaParameter);
             }
 
             return ExpressionHelpers.GroupBy(query, groupLambda, this._elementType, this._groupByClrType);
