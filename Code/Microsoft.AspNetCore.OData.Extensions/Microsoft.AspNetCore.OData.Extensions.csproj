@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Brandless.Data" Version="0.0.40017-10014" />
     <PackageReference Include="Iql" Version="0.0.28-preview20063" />
     <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20063" />
     <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20063" />
