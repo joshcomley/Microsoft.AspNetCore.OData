@@ -146,35 +146,35 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 string prop = null;
                 if (property.Value.Type == typeof(int))
                 {
-                    prop = "IntValue";
+                    prop = nameof(IntValue);
                 }
                 else if (property.Value.Type == typeof(short))
                 {
-                    prop = "ShortValue";
+                    prop = nameof(ShortValue);
                 }
                 else if (property.Value.Type == typeof(long))
                 {
-                    prop = "LongValue";
+                    prop = nameof(LongValue);
                 }
                 else if (property.Value.Type == typeof(decimal))
                 {
-                    prop = "DecimalValue";
+                    prop = nameof(DecimalValue);
                 }
                 else if (property.Value.Type == typeof(string))
                 {
-                    prop = "StringValue";
+                    prop = nameof(StringValue);
                 }
                 else if (property.Value.Type == typeof(bool))
                 {
-                    prop = "BooleanValue";
+                    prop = nameof(BooleanValue);
                 }
                 else if (property.Value.Type == typeof(DateTime))
                 {
-                    prop = "DateTimeValue";
+                    prop = nameof(DateTimeValue);
                 }
                 else if (property.Value.Type == typeof(DateTimeOffset))
                 {
-                    prop = "DateTimeOffsetValue";
+                    prop = nameof(DateTimeOffsetValue);
                 }
                 memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("ValueProperty"), Expression.Constant(prop)));
                 memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty(prop), Expression.Convert(property.Value, property.Value.Type)));

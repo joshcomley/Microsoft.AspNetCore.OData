@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.AspNetCore.OData.Common;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Query;
+using Microsoft.AspNetCore.OData.Query.Expressions;
 using Microsoft.OData;
 using Microsoft.OData.Edm;
 using Microsoft.OData.UriParser;
@@ -49,7 +50,15 @@ namespace Microsoft.AspNetCore.OData.Formatter.Serialization
 
             IEdmEntitySetBase entitySet = writeContext.NavigationSource as IEdmEntitySetBase;
 
-            IEdmTypeReference resourceSetType = writeContext.Path.EdmType.ToEdmTypeReference(false);// writeContext.GetEdmType(graph, type);
+            IEdmTypeReference resourceSetType;
+            if (typeof(IEnumerable<DynamicTypeWrapper>).IsAssignableFrom(type) || typeof(DynamicTypeWrapper).IsAssignableFrom(type))
+            {
+                resourceSetType = writeContext.Path.EdmType.ToEdmTypeReference(false);
+            }
+            else
+            {
+                resourceSetType = writeContext.GetEdmType(graph, type);
+            }
             Contract.Assert(resourceSetType != null);
 
             IEdmStructuredTypeReference resourceType = GetResourceType(resourceSetType);
