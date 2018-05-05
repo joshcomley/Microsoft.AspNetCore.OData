@@ -1,11 +1,9 @@
 ﻿using System.Collections.Generic;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Xml;
 using Iql.DotNet;
-using Iql.Queryable;
-using Iql.Queryable.Data.DataStores.InMemory.QueryApplicator;
 using Iql.Queryable.Data.EntityConfiguration;
+using Iql.Queryable.Expressions;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Validation;
@@ -30,7 +28,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 
         static AnnotationManagerBase()
         {
-            IqlQueryableAdapter.ExpressionConverter = () => new DotNetExpressionConverter();
+            IqlExpressionConversion.DefaultExpressionConverter = () => new DotNetExpressionConverter();
             IEnumerable<EdmError> errors;
             var assembly = typeof(ODataExtensionsEdmModelExtensions).GetTypeInfo().Assembly;
             var assemblyName = assembly.GetName().Name;
