@@ -115,7 +115,8 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
             }
             else
             {
-                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty("Value"), property.Value));
+                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty(nameof(NamedProperty<object>.RelationshipValue)), property.Value));
+                memberBindings.Add(Expression.Bind(namedPropertyType.GetProperty(nameof(NamedProperty<object>.ValueProperty)), Expression.Constant(nameof(NamedProperty<object>.RelationshipValue))));
             }
 
             if (next != null)
@@ -199,6 +200,7 @@ namespace Microsoft.AspNetCore.OData.Query.Expressions
                 }
             }
 
+            public object RelationshipValue { get; set; }
             public string ValueProperty { get; set; }
             public long LongValue { get; set; }
             public int IntValue { get; set; }
