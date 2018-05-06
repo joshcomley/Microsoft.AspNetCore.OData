@@ -17,7 +17,10 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             var entityTypes = typeof(TService)
                 .GetProperties()
                 .Select(p => p.PropertyType.GetGenericArguments()[0]);
-            var allMethods = GetType().GetRuntimeMethods().ToList();
+            var allMethods = GetType()
+                .GetRuntimeMethods()
+                .Where(m => m.GetCustomAttribute<ConfigureEntityAttribute>() != null)
+                .ToList();
             model(edmModel =>
             {
                 foreach (var entityType in entityTypes)
@@ -60,18 +63,21 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             });
         }
 
+        [ConfigureEntityAttribute]
         public void ConfigureIRevisionable<T>(EdmModel model)
             where T : IRevisionable
         {
             model.Property<T>(p => p.RevisionKey).SetReadOnly();
         }
 
+        [ConfigureEntityAttribute]
         public void ConfigureICreatedDate<T>(EdmModel model)
             where T : ICreatedDate
         {
             model.Property<T>(p => p.CreatedDate).SetReadOnly();
         }
 
+        [ConfigureEntityAttribute]
         public void ConfigureDbObject<T, TUser>(EdmModel model)
             where T : DbObjectBase<TUser>
         {
@@ -84,6 +90,7 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             model.Property<T>(p => p.Version).SetReadOnly();
         }
 
+        [ConfigureEntityAttribute]
         public void ConfigureICreatedBy<T, TUser>(EdmModel model)
             where T : ICreatedBy<TUser>
         {
@@ -91,6 +98,7 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             model.Property<T>(p => p.CreatedByUserId).SetReadOnly();
         }
 
+        [ConfigureEntityAttribute]
         public void ConfigureIDbObject<T, TKey>(EdmModel model)
             where T : IDbObject<TKey>
         {
