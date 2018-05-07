@@ -5,6 +5,7 @@ using System.Reflection;
 using Brandless.Data.Contracts;
 using Brandless.Data.Entities;
 using Iql.DotNet.Extensions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.OData.Edm;
 
@@ -114,6 +115,15 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             where T : IDbObject<TKey>
         {
             model.Property<T>(p => p.Id).SetReadOnly();
+        }
+
+        [ConfigureEntity]
+        public void ConfigureIdentityUser<T, TKey>(EdmModel model)
+            where T : IdentityUser<TKey> 
+            where TKey : IEquatable<TKey>
+        {
+            model.Property<T>(p => p.Id).SetReadOnly();
+            model.Property<T>(p => p.Email).SetHint("Iql:EmailAddress");
         }
 
         [ConfigureEntity]
