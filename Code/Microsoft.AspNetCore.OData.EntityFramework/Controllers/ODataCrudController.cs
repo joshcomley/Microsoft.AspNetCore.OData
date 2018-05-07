@@ -281,7 +281,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 {
                     foreach (var entityValidation in modelConfiguration.ValidationMap.EntityValidations)
                     {
-                        var iqlValidationResult = entityValidation.Validate(entity);
+                        var iqlValidationResult = entityValidation.Run(entity);
                         isValid = isValid && iqlValidationResult;
                         if (!iqlValidationResult)
                         {
@@ -293,9 +293,9 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 {
                     foreach (var propertyValidationCollection in modelConfiguration.ValidationMap.PropertyValidations)
                     {
-                        foreach (var propertyValidation in propertyValidationCollection.Validations)
+                        foreach (var propertyValidation in propertyValidationCollection.Rules)
                         {
-                            var iqlValidationResult = propertyValidation.Validate(entity);
+                            var iqlValidationResult = propertyValidation.Run(entity);
                             isValid = isValid && iqlValidationResult;
                             if (!iqlValidationResult)
                             {

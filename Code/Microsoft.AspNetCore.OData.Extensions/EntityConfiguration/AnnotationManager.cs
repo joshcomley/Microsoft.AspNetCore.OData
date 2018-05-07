@@ -5,13 +5,14 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Display;
-using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Iql.DotNet.Serialization;
 using Iql.Queryable.Data.EntityConfiguration;
+using Iql.Queryable.Data.EntityConfiguration.Rules;
+using Iql.Queryable.Data.EntityConfiguration.Rules.Display;
+using Iql.Queryable.Data.EntityConfiguration.Validation;
 using Microsoft.AspNetCore.OData.Extensions;
-using Microsoft.AspNetCore.OData.Formatter;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Vocabularies;
@@ -36,7 +37,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             Expression<Func<TEntity, string>> formatterExpression,
             string key = null)
         {
-            var iql = IqlSerializer.SerializeToXml(formatterExpression);
+            var iql = IqlXmlSerializer.SerializeToXml(formatterExpression);
             // TODO: If validation expression is null, then compile it from the IQL
             //var iql = ExpressionToIqlExpressionParser<TEntity>.Parse(validationExpression);
             //var parser =
@@ -79,13 +80,37 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         //    }
         //}
 
-        public void AddValidationAnnotation(
+        public void AddValidationRuleAnnotation(
             Expression<Func<TEntity, bool>> validationExpression,
             string message,
             string key,
             Expression<Func<TEntity, object>> propertyExpression = null)
         {
-            var iql = IqlSerializer.SerializeToXml(validationExpression);
+            MapRule(propertyExpression, new ValidationRule<TEntity>(validationExpression, key, message), "ValidationRule", Model.ModelConfiguration().ForEntityType<TEntity>().ValidationMap);
+        }
+
+        public void AddDisplayRuleAnnotation(
+            Expression<Func<TEntity, bool>> validationExpression,
+            string message,
+            string key,
+            Expression<Func<TEntity, object>> propertyExpression,
+            DisplayRuleKind kind = DisplayRuleKind.NewAndEdit
+            )
+        {
+            var displayRule = new DisplayRule<TEntity>(validationExpression, key, message);
+            displayRule.Kind = kind;
+            MapRule(propertyExpression, displayRule, "DisplayRule", Model.ModelConfiguration().ForEntityType<TEntity>().DisplayRuleMap,
+                expressions =>
+                {
+                    expressions.Add(new EdmLabeledExpression(nameof(IDisplayRule.Kind),
+                        new EdmIntegerConstant((long) displayRule.Kind)));
+                });
+        }
+
+        private void MapRule(Expression<Func<TEntity, object>> propertyExpression, IRule rule, string containerName, IRuleMap ruleMap,
+            Action<List<IEdmExpression>> customise = null)
+        {
+            var iql = IqlXmlSerializer.SerializeToXml(rule.Expression);
             string propertyName = null;
 
             if (propertyExpression != null)
@@ -96,21 +121,18 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 
             var expression = new EdmStringConstant(iql);
             var expressionLabel = new EdmLabeledExpression("Expression", expression);
-            var messageLabel = new EdmLabeledExpression("Message", new EdmStringConstant(message));
-            var keyLabel = new EdmLabeledExpression("Key", new EdmStringConstant(key));
-            var coll = new EdmCollectionExpression(keyLabel, expressionLabel, messageLabel);
+            var messageLabel = new EdmLabeledExpression("Message", new EdmStringConstant(rule.Message ?? ""));
+            var keyLabel = new EdmLabeledExpression("Key", new EdmStringConstant(rule.Key ?? ""));
+            var expressions = new List<IEdmExpression>(new[]{keyLabel, expressionLabel, messageLabel});
+            customise?.Invoke(expressions);
+            var coll = new EdmCollectionExpression(expressions.ToArray());
 
-            var container = new EdmLabeledExpression("Validation", coll);
+            var container = new EdmLabeledExpression(containerName, coll);
             var config = GetConfigurationAnnotation(propertyName);
-            config.ValidationAnnotation.Add(container);
-            //EntityConfigurationExpressions.Add(container);
-            //var annotation = new EdmVocabularyAnnotation(target, ValidationTerm, coll);
-            //annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
-            //Model.AddVocabularyAnnotation(annotation);
+            config.RulesAnnotation.Add(container);
 
-            var modelConfiguration = Model.ModelConfiguration();
-            var validationObject = new EntityValidation<TEntity>(validationExpression, key, message);
-            modelConfiguration.ForEntityType<TEntity>().ValidationMap.AddValidation(
+            var validationObject = rule;
+            ruleMap.AddRule(
                 validationObject, propertyName);
         }
 

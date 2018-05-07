@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
-using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Iql.Queryable.Data.EntityConfiguration;
+using Iql.Queryable.Data.EntityConfiguration.Rules.Display;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
 using IEdmEntityContainer = Microsoft.OData.Edm.IEdmEntityContainer;
@@ -38,7 +37,7 @@ namespace Brandless.AspNetCore.OData.Extensions
             model.ModelConfiguration()
                 .ForEntityType<TEntity>()
                 .AnnotationsManager
-                .AddValidationAnnotation(
+                .AddValidationRuleAnnotation(
                     validationExpression,
                     message,
                     key ?? Guid.NewGuid().ToString());
@@ -92,8 +91,28 @@ namespace Brandless.AspNetCore.OData.Extensions
             model.ModelConfiguration()
                 .ForEntityType<TEntity>()
                 .AnnotationsManager
-                .AddValidationAnnotation(
+                .AddValidationRuleAnnotation(
                     validationExpression,
+                    message,
+                    key ?? Guid.NewGuid().ToString(),
+                    propertyExpression
+                );
+            return model;
+        }
+
+        public static EdmModel AddEntityPropertyDisplayRule<TEntity>(
+            this EdmModel model,
+            Expression<Func<TEntity, object>> propertyExpression,
+            Expression<Func<TEntity, bool>> displayRuleExpression,
+            string message = null,
+            string key = null,
+            DisplayRuleKind kind = DisplayRuleKind.NewAndEdit)
+        {
+            model.ModelConfiguration()
+                .ForEntityType<TEntity>()
+                .AnnotationsManager
+                .AddDisplayRuleAnnotation(
+                    displayRuleExpression,
                     message,
                     key ?? Guid.NewGuid().ToString(),
                     propertyExpression

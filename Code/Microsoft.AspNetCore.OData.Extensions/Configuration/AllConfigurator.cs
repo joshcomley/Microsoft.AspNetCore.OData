@@ -63,21 +63,32 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             });
         }
 
-        [ConfigureEntityAttribute]
+        [ConfigureEntity]
         public void ConfigureIRevisionable<T>(EdmModel model)
             where T : IRevisionable
         {
-            model.Property<T>(p => p.RevisionKey).SetReadOnly();
+            model
+                .Property<T>(p => p.RevisionKey)
+                .SetReadOnly()
+                .SetHidden()
+                ;
         }
 
-        [ConfigureEntityAttribute]
+        [ConfigureEntity]
+        public void ConfigureIHasDescription<T>(EdmModel model)
+            where T : IHasDescription
+        {
+            model.Property<T>(p => p.Description).SetHint("Iql:BigText");
+        }
+
+        [ConfigureEntity]
         public void ConfigureICreatedDate<T>(EdmModel model)
             where T : ICreatedDate
         {
             model.Property<T>(p => p.CreatedDate).SetReadOnly();
         }
 
-        [ConfigureEntityAttribute]
+        [ConfigureEntity]
         public void ConfigureDbObject<T, TUser>(EdmModel model)
             where T : DbObjectBase<TUser>
         {
@@ -85,12 +96,12 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             model.Property<T>(p => p.CreatedDate).SetReadOnly();
             model.Property<T>(p => p.CreatedByUser).SetReadOnly();
             model.Property<T>(p => p.CreatedByUserId).SetReadOnly();
-            model.Property<T>(p => p.Guid).SetReadOnly();
-            model.Property<T>(p => p.PersistenceKey).SetReadOnly();
-            model.Property<T>(p => p.Version).SetReadOnly();
+            model.Property<T>(p => p.Guid).SetReadOnly().SetHidden();
+            model.Property<T>(p => p.PersistenceKey).SetReadOnly().SetHidden();
+            model.Property<T>(p => p.Version).SetReadOnly().SetHidden();
         }
 
-        [ConfigureEntityAttribute]
+        [ConfigureEntity]
         public void ConfigureICreatedBy<T, TUser>(EdmModel model)
             where T : ICreatedBy<TUser>
         {
@@ -98,11 +109,33 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             model.Property<T>(p => p.CreatedByUserId).SetReadOnly();
         }
 
-        [ConfigureEntityAttribute]
+        [ConfigureEntity]
         public void ConfigureIDbObject<T, TKey>(EdmModel model)
             where T : IDbObject<TKey>
         {
             model.Property<T>(p => p.Id).SetReadOnly();
+        }
+
+        [ConfigureEntity]
+        public void ConfigureHasGuid<T>(EdmModel model)
+            where T : IHasGuid
+        {
+            model
+                .Property<T>(p => p.Guid)
+                .SetReadOnly()
+                .SetHidden()
+                ;
+        }
+
+        [ConfigureEntity]
+        public void ConfigurePersistenceKeyObject<T>(EdmModel model)
+            where T : IHasPersistenceKey
+        {
+            model
+                .Property<T>(p => p.PersistenceKey)
+                .SetReadOnly()
+                .SetHidden()
+                ;
         }
     }
 }

@@ -18,6 +18,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         {
             Model = model;
             ValidationMap = new EntityValidationMap<TEntity>();
+            DisplayRuleMap = new DisplayRuleMap<TEntity>();
             DisplayTextFormatterMap = new EntityDisplayTextFormatterMap<TEntity>();
             AnnotationsManager = new AnnotationManager<TEntity>(model);
             ReportDefinitions = new ReportDefinitionMap<TEntity>();
@@ -26,6 +27,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         public EdmModel Model { get; }
         public IEntityMetadata Metadata { get; set; } = new EntityMetadata();
         public EntityValidationMap<TEntity> ValidationMap { get; set; }
+        public DisplayRuleMap<TEntity> DisplayRuleMap { get; set; }
         internal AnnotationManager<TEntity> AnnotationsManager { get; }
         public ReportDefinitionMap<TEntity> ReportDefinitions { get; }
 
@@ -48,7 +50,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 
         public EntityDisplayTextFormatterMap<TEntity> DisplayTextFormatterMap { get; set; }
 
-        IEntityValidationMap IEntityTypeConfiguration.ValidationMap
+        IRuleMap IEntityTypeConfiguration.ValidationMap
         {
             get => ValidationMap;
             set => ValidationMap = (EntityValidationMap<TEntity>) value;

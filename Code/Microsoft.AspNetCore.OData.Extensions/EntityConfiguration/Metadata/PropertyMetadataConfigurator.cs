@@ -12,6 +12,12 @@ namespace Brandless.AspNetCore.OData.Extensions
             return this;
         }
 
+        public PropertyMetadataConfigurator SetHidden(bool value = true)
+        {
+            Metadata.Hidden = true;
+            return this;
+        }
+
         public PropertyMetadataConfigurator SetKind(PropertyKind kind)
         {
             Metadata.Kind = kind;

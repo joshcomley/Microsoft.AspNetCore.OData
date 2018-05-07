@@ -32,7 +32,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
                 Model.AddVocabularyAnnotation(annotation);
 
-                ValidationAnnotation = new CollectionAnnotation<TEntity>("Validations", this, model);
+                RulesAnnotation = new CollectionAnnotation<TEntity>("Rules", this, model);
                 DisplayFormattingAnnotation = new CollectionAnnotation<TEntity>("DisplayFormatters", this, model);
             }
         }
@@ -40,7 +40,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         public bool Valid { get; set; } = true;
         public EdmModel Model { get; }
         public List<EdmLabeledExpression> ChildExpressions { get; } = new List<EdmLabeledExpression>();
-        public CollectionAnnotation<TEntity> ValidationAnnotation { get; }
+        public CollectionAnnotation<TEntity> RulesAnnotation { get; }
 
         public EdmLabeledExpression MetadataAnnotation
         {

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Xml;
 using Iql.DotNet;
@@ -31,27 +32,15 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             IqlExpressionConversion.DefaultExpressionConverter = () => new DotNetExpressionConverter();
             IEnumerable<EdmError> errors;
             var assembly = typeof(ODataExtensionsEdmModelExtensions).GetTypeInfo().Assembly;
-            var assemblyName = assembly.GetName().Name;
-            using (var stream = assembly.GetManifestResourceStream(
-                $"{assemblyName}.Vocabularies.MeasuresVocabularies.xml"))
+            var resourceNames = assembly.GetManifestResourceNames();
+            var resourceName = resourceNames.Single(rn => rn.EndsWith(".Vocabularies.MeasuresVocabularies.xml"));
+            using (var stream = assembly.GetManifestResourceStream(resourceName))
             {
-                if (stream == null)
-                {
-                    assemblyName = assemblyName.Replace("Brandless", "Microsoft");
-                    using (var stream2 = assembly.GetManifestResourceStream(
-                        $"{assemblyName}.Vocabularies.MeasuresVocabularies.xml"))
-                    {
-                        CsdlReader.TryParse(XmlReader.Create(stream2), out Instance, out errors);
-                    }
-                }
-                else
-                {
-                    CsdlReader.TryParse(XmlReader.Create(stream), out Instance, out errors);
-                }
+                CsdlReader.TryParse(XmlReader.Create(stream), out Instance, out errors);
             }
             //ISOCurrencyTerm = Instance.FindDeclaredTerm(MeasuresISOCurrency);
             var configurationNs = "Iql";
-            var validationNs = $"{configurationNs}.Validation";
+            var validationNs = $"{configurationNs}.ValidationRules";
             DisplayTextFormatterTerm = StringEdmTerm("DisplayTextFormatter", configurationNs);
             IqlConfigurationTerm = StringEdmTerm("Configuration", configurationNs);
             ValidationTerm = StringEdmTerm("Expression", validationNs);
