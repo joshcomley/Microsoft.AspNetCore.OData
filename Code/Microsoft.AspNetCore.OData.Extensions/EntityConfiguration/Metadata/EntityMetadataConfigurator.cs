@@ -4,7 +4,9 @@ namespace Brandless.AspNetCore.OData.Extensions
 {
     public class EntityMetadataConfigurator : MetadataConfigurator<IEntityMetadata, EntityMetadataConfigurator>
     {
-        public EntityMetadataConfigurator(IEntityMetadata metadata) : base(metadata) { }
+        public EntityMetadataConfigurator(IEntityMetadata metadata) : base(metadata)
+        {
+        }
 
         public EntityMetadataConfigurator SetEntitySetFriendlyName(string friendlyName)
         {
@@ -15,6 +17,12 @@ namespace Brandless.AspNetCore.OData.Extensions
         public EntityMetadataConfigurator SetEntitySetName(string name)
         {
             Metadata.SetName = name;
+            return this;
+        }
+
+        public EntityMetadataConfigurator SetManageKind(EntityManageKind kind)
+        {
+            Metadata.ManageKind = kind;
             return this;
         }
     }

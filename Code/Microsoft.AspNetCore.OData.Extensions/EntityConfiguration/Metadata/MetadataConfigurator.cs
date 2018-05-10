@@ -9,6 +9,7 @@ namespace Brandless.AspNetCore.OData.Extensions
         where TReturn : MetadataConfigurator<T, TReturn>
     {
         public T Metadata { get; }
+
         public MetadataConfigurator(T metadata)
         {
             Metadata = metadata;

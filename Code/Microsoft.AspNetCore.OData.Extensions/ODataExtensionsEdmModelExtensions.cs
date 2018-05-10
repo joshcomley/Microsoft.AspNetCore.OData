@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Iql.Queryable.Data.EntityConfiguration;
@@ -137,6 +139,19 @@ namespace Brandless.AspNetCore.OData.Extensions
                 .Metadata;
             metadataExpression?.Invoke(propertyMetadata);
             return new EntityMetadataConfigurator(propertyMetadata);
+        }
+
+        public static void ForAllEntityTypes(this EdmModel model, Action<IEntityMetadata> action, params Type[] types)
+        {
+            foreach (var type in types)
+            {
+                model.Entity(type, action);
+            }
+        }
+
+        public static void ForAllEntityTypes(this EdmModel model, Func<IEntityTypeConfiguration, bool> filter, Action<IEntityMetadata> action)
+        {
+            model.ForAllEntityTypes(action, model.ModelConfiguration().All().Where(filter).Select(t => t.EntityType).ToArray());
         }
 
         public static PropertyMetadataConfigurator Property<TEntity>(

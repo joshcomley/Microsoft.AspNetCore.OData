@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Brandless.AspNetCore.OData.Extensions;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
+using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Brandless.Data;
 using Brandless.Data.Contracts;
 using Brandless.Data.Entities;
@@ -16,6 +17,8 @@ using Brandless.Data.Models;
 using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.EntityFramework.Export;
+using Microsoft.AspNetCore.OData.EntityFramework.Export.Excel;
 using Microsoft.AspNetCore.OData.EntityFramework.Extensions;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.AspNetCore.OData.Routing.Conventions;
@@ -70,8 +73,57 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         [HttpGet]
         public virtual async Task<IActionResult> Get()
         {
+            if (Request.IsExportRequest(out var kind, out var kindName))
+            {
+                if (CanHandleExportRequest(kind, kindName))
+                {
+                    return await ExportAsync(kind, kindName);
+                }
+            }
             IActionResult result = Ok(await GetEntitySetQuery());
             return result;
+        }
+
+        public virtual async Task<IActionResult> ExportAsync(ExportKind kind, string kindName)
+        {
+            var modelConfiguration = Request.HttpContext.RequestServices.GetService<IEdmModelAccessor>().EdmModel.ModelConfiguration();
+            var queryable = await GetEntitySetQuery();
+            return await ExportAsync(kind, kindName, queryable, modelConfiguration);
+        }
+
+        public virtual async Task<IActionResult> ExportAsync(ExportKind kind, string kindName, IQueryable<T> queryable,
+            ModelConfiguration modelConfiguration)
+        {
+            switch (kind)
+            {
+                case ExportKind.Excel:
+                    return ExcelFile(await GetExcelReportAsync(queryable, modelConfiguration));
+            }
+            return null;
+        }
+
+        public virtual async Task<byte[]> GetExcelReportAsync(IQueryable<T> queryable, ModelConfiguration modelConfiguration)
+        {
+            return await new QueryToExcel<T>().GetReportAsync(
+                Request,
+                queryable,
+                modelConfiguration);
+        }
+
+        protected IActionResult ExcelFile(byte[] report)
+        {
+            return File(report, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        public virtual bool CanHandleExportRequest(ExportKind kind, string kindName)
+        {
+            switch (kind)
+            {
+                case ExportKind.Excel:
+                    return true;
+            }
+
+            return false;
         }
 
         public virtual Task<IQueryable<T>> GetEntitySetQuery()

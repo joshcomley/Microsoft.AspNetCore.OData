@@ -35,6 +35,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata
             HintHelper.RemoveHint(this, name);
         }
 
+        public string GroupPath { get; set; }
         public string Description { get; set; }
         public string FriendlyName { get; set; }
         public List<string> Hints { get; set; } = new List<string>();

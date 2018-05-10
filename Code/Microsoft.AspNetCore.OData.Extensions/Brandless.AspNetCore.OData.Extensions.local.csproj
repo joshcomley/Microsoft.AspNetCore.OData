@@ -17,16 +17,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Brandless.Data" Version="0.0.40017-10014" />
-    <PackageReference Include="Iql" Version="0.0.28-preview20093" />
-    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20093" />
-    <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20093" />
+    <PackageReference Include="Brandless.Data" Version="0.0.40017-10017" />
+    <PackageReference Include="Iql" Version="0.0.28-preview20098" />
+    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20098" />
+    <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20098" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.1" />
     <PackageReference Include="Microsoft.Data.Edm" Version="5.8.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Microsoft.AspNetCore.OData\Brandless.AspNetCore.OData.local.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.Identity.Stores">
+      <HintPath>C:\Users\Josh Comley\.nuget\packages\microsoft.extensions.identity.stores\2.0.0\lib\netstandard2.0\Microsoft.Extensions.Identity.Stores.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
