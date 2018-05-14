@@ -17,4 +17,15 @@ namespace Microsoft.AspNetCore.OData.Builder
         public bool IsBound { get; set; }
         public string BindingName { get; set; }
     }
+    /// <summary>
+    /// Represents an <see cref="Attribute"/> that can be placed on a method to specify
+    /// that the method represents a OData Function. It's used in DefaultODataModelProvider.
+    /// </summary>
+    public sealed class ODataGenericFunctionAttribute : Attribute
+    {
+        public string ForCollectionTypeParameterName { get; set; }
+        public string ForTypeTypeParameterName { get; set; }
+        public bool IsBound { get; set; }
+        public string BindingName { get; set; }
+    }
 }

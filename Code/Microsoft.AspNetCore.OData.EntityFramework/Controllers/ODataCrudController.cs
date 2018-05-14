@@ -14,6 +14,7 @@ using Brandless.Data.Contracts;
 using Brandless.Data.Entities;
 using Brandless.Data.EntityFramework.Crud;
 using Brandless.Data.Models;
+using Brandless.Data.Mptt;
 using Brandless.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -932,12 +933,12 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual Task OnAfterPostAsync(T currentEntity, T patchEntity, JObject jObject)
         {
-            return Task.FromResult(true);
+            return TryProcessNestedSet(currentEntity, null);
         }
 
         public virtual Task OnBeforePatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
         {
-            return Task.FromResult(true);
+            return TryProcessNestedSet(patchEntity, currentEntity);
         }
 
         public virtual Task OnAfterPatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
@@ -979,6 +980,68 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         protected virtual string GetCurrentUserId()
         {
             return UserManager.GetUserId(HttpContext.User);
+        }
+
+        protected virtual async Task ProcessNestedSetAsync<TKey, TNullableKey, TTreeKey>(
+            IMpttDynamic<TKey, TNullableKey, TTreeKey> mptt, IMpttDynamic<TKey, TNullableKey, TTreeKey> existing = null)
+        {
+            var tableName = Data.Context.Model.FindEntityType(mptt.GetType()).Relational().TableName;
+            var manager =
+                new MpttManager<TKey, TNullableKey, TTreeKey>(() => Services.GetService<TDbContextSecured>(), mptt.Key, tableName: tableName);
+            var idProperty = typeof(T).GetProperty(nameof(IMpttDynamic<TKey, TNullableKey, TTreeKey>.Id));
+
+            TKey GetId(IMpttDynamic<TKey, TNullableKey, TTreeKey> entity)
+            {
+                return (TKey)idProperty.GetValue(entity);
+            }
+
+            if (existing == null)
+            {
+                if (!Equals(default(TNullableKey), mptt.ParentId))
+                {
+                    await manager.InsertAsChildOfAsync(GetId(mptt), mptt.ParentId);
+                }
+                else if (!Equals(default(TNullableKey), mptt.LeftOf))
+                {
+                    await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)mptt.LeftOf);
+                }
+                else if (!Equals(default(TNullableKey), mptt.RightOf))
+                {
+                    await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)mptt.RightOf);
+                }
+            }
+            else
+            {
+                manager.TreeKey = existing.Key;
+                if (!Equals(existing.ParentId, mptt.ParentId))
+                {
+                    await manager.MoveToAsync(GetId(mptt), (TKey)(object)mptt.ParentId, NodeMoveKind.Beneath);
+                }
+                else if (!Equals(default(TNullableKey), mptt.LeftOf))
+                {
+                    await manager.MoveToAsync(GetId(mptt), (TKey)(object)mptt.LeftOf, NodeMoveKind.Left);
+                }
+                else if (!Equals(default(TNullableKey), mptt.RightOf))
+                {
+                    await manager.MoveToAsync(GetId(mptt), (TKey)(object)mptt.RightOf, NodeMoveKind.Right);
+                }
+                var updated = (IMpttDynamic<TKey, TNullableKey, TTreeKey>)await Services.GetService<TDbContextSecured>().Set<T>().FindAsync(GetId(mptt));
+                mptt.Left = updated.Left;
+                mptt.Right = updated.Right;
+                existing.Left = updated.Left;
+                existing.Right = updated.Right;
+            }
+        }
+
+        private async Task TryProcessNestedSet(T currentEntity, T existingEntity)
+        {
+            var baseType = typeof(T).TryGetBaseType(typeof(IMpttDynamic<,,>));
+            if (baseType != null)
+            {
+                var method = GetType().GetMethod(nameof(ProcessNestedSetAsync), BindingFlags.Instance | BindingFlags.NonPublic);
+                await (Task)method.MakeGenericMethod(baseType.Type.GenericTypeArguments.ToArray())
+                    .Invoke(this, new object[] { currentEntity, existingEntity });
+            }
         }
     }
 }

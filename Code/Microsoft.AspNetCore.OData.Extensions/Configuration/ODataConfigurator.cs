@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.AspNetCore.OData.Extensions;
+using Microsoft.AspNetCore.OData.Formatter;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData.Edm;
 
@@ -214,6 +215,10 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             var allTypes = assemblyProvider.CandidateAssemblies.SelectMany(a => a.ExportedTypes);
             foreach (var type in allTypes)
             {
+                if (type.IsAbstract)
+                {
+                    continue;
+                }
                 MethodInfo[] publicMethods = null;
                 try
                 {
@@ -233,9 +238,57 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                                 var actionAttribute = method.GetCustomAttribute<ODataActionAttribute>();
                                 if (functionAttribute == null && actionAttribute == null)
                                 {
-                                    continue;
-                                }
+                                    var genericFunctionAttribute = method.GetCustomAttribute<ODataGenericFunctionAttribute>();
+                                    var genericActionAttribute = method.GetCustomAttribute<ODataGenericActionAttribute>();
 
+                                    if (genericActionAttribute == null && genericFunctionAttribute == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var genericTypeDefinition = method.DeclaringType.GetGenericTypeDefinition();
+                                    var genericArguments = genericTypeDefinition.GetGenericArguments();
+                                    var genericParameters = method.DeclaringType.GetGenericArguments();
+                                    Type GetTypeFromDefinition(string name)
+                                    {
+                                        if (string.IsNullOrWhiteSpace(name))
+                                        {
+                                            return null;
+                                        }
+                                        for (var i = 0; i < genericArguments.Length; i++)
+                                        {
+                                            if (genericArguments[i].Name == name)
+                                            {
+                                                return genericParameters[i];
+                                            }
+                                        }
+                                        return null;
+                                    }
+                                    if (genericFunctionAttribute != null)
+                                    {
+                                        functionAttribute = new ODataFunctionAttribute();
+                                        functionAttribute.IsBound = genericFunctionAttribute.IsBound;
+                                        functionAttribute.BindingName = genericFunctionAttribute.BindingName;
+                                        functionAttribute.ForCollection =
+                                            GetTypeFromDefinition(genericFunctionAttribute
+                                                .ForCollectionTypeParameterName);
+                                        functionAttribute.ForType =
+                                            GetTypeFromDefinition(genericFunctionAttribute
+                                                .ForTypeTypeParameterName);
+                                    }
+                                    if (genericActionAttribute != null)
+                                    {
+                                        actionAttribute = new ODataActionAttribute();
+                                        actionAttribute.IsBound = genericActionAttribute.IsBound;
+                                        actionAttribute.BindingName = genericActionAttribute.BindingName;
+                                        actionAttribute.ForCollection =
+                                            GetTypeFromDefinition(genericActionAttribute
+                                                .ForCollectionTypeParameterName);
+                                        actionAttribute.ForType =
+                                            GetTypeFromDefinition(genericActionAttribute
+                                                .ForTypeTypeParameterName);
+                                    }
+                                }
 
                                 var entityClrType = TypeHelper.GetImplementedIEnumerableType(method.ReturnType) ??
                                                     method.ReturnType;
@@ -292,7 +345,20 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                                         {
                                             if (parameterInfo.GetCustomAttributes(typeof(FromBodyAttribute)) != null)
                                             {
+                                                //if (parameterInfo.ParameterType.Name == "DummyModel")
+                                                //{
+                                                //    int a = 0;
+                                                //}
+
+                                                //if (parameterInfo.ParameterType.Name == "newParent")
+                                                //{
+                                                //    int a = 0;
+                                                //}
                                                 if (parameterInfo.ParameterType.IsPrimitiveType())
+                                                {
+                                                    AddParameter(builder, configuration, parameterInfo.ParameterType, parameterInfo.Name);
+                                                }
+                                                else if (builder.EntitySets.Any(t => t.ClrType == parameterInfo.ParameterType))
                                                 {
                                                     AddParameter(builder, configuration, parameterInfo.ParameterType, parameterInfo.Name);
                                                 }
@@ -321,9 +387,9 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
         }
 
         private static void AddParameter(
-            ODataConventionModelBuilder builder, 
+            ODataConventionModelBuilder builder,
             OperationConfiguration configuration,
-            Type pType, 
+            Type pType,
             string name)
         {
             if (pType.IsPrimitiveType())

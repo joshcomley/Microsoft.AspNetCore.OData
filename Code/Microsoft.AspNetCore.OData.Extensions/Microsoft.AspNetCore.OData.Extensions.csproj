@@ -13,10 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Brandless.Data" Version="0.0.40017-10017" />
-    <PackageReference Include="Iql" Version="0.0.28-preview20103" />
-    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20103" />
-    <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20103" />
+    <PackageReference Include="Brandless.Data" Version="0.0.40017-10023" />
+    <PackageReference Include="Iql" Version="0.0.28-preview20104" />
+    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20104" />
+    <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20104" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.1" />
     <PackageReference Include="Microsoft.Data.Edm" Version="5.8.3" />
   </ItemGroup>
