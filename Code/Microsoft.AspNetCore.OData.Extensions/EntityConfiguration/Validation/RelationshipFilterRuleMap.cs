@@ -1,11 +1,12 @@
 ﻿using System;
 using Iql.Entities.Rules.Display;
+using Iql.Entities.Rules.Relationship;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
 {
-    public class DisplayRuleMap<TEntity> : RuleMap<TEntity, DisplayRule<TEntity>>
+    public class RelationshipFilterRuleMap<TEntity> : RuleMap<TEntity, IRelationshipRule>
     {
-        public override void AddRule(DisplayRule<TEntity> validationExpression, string propertyName = null)
+        public override void AddRule(IRelationshipRule validationExpression, string propertyName = null)
         {
             if (string.IsNullOrWhiteSpace(propertyName))
             {

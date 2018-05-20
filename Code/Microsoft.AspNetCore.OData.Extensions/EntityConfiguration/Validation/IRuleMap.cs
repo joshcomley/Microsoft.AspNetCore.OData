@@ -1,6 +1,4 @@
-﻿using System;
-using Iql.Queryable.Data.EntityConfiguration.Rules;
-using Iql.Queryable.Data.EntityConfiguration.Validation;
+﻿using Iql.Entities.Rules;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
 {

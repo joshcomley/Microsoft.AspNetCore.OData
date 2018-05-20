@@ -1,12 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
-using Iql.Queryable.Data.EntityConfiguration;
-using Iql.Queryable.Data.EntityConfiguration.Rules.Display;
+using Iql.Entities;
+using Iql.Entities.Rules.Display;
+using Iql.Entities.Rules.Relationship;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
 using IEdmEntityContainer = Microsoft.OData.Edm.IEdmEntityContainer;
@@ -118,6 +120,43 @@ namespace Brandless.AspNetCore.OData.Extensions
                     message,
                     key ?? Guid.NewGuid().ToString(),
                     propertyExpression
+                );
+            return model;
+        }
+
+        public static EdmModel AddRelationshipFilterRule<TEntity, TRelationship>(
+            this EdmModel model,
+            Expression<Func<TEntity, TRelationship>> propertyExpression,
+            Expression<Func<RelationshipFilterContext<TEntity>, Expression<Func<TRelationship, bool>>>> filterExpression,
+            string message = null,
+            string key = null)
+        {
+            model.ModelConfiguration()
+                .ForEntityType<TEntity>()
+                .AnnotationsManager
+                .AddRelationshipFilterAnnotation(
+                    propertyExpression,
+                    filterExpression,
+                    message,
+                    key ?? Guid.NewGuid().ToString()
+                );
+            return model;
+        }
+        public static EdmModel AddRelationshipFilterRule<TEntity, TRelationship>(
+            this EdmModel model,
+            Expression<Func<TEntity, IEnumerable<TRelationship>>> propertyExpression,
+            Expression<Func<RelationshipFilterContext<TEntity>, Expression<Func<TRelationship, bool>>>> filterExpression,
+            string message = null,
+            string key = null)
+        {
+            model.ModelConfiguration()
+                .ForEntityType<TEntity>()
+                .AnnotationsManager
+                .AddRelationshipFilterAnnotation(
+                    propertyExpression,
+                    filterExpression,
+                    message,
+                    key ?? Guid.NewGuid().ToString()
                 );
             return model;
         }

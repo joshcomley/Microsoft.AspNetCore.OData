@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Iql.Queryable.Data.EntityConfiguration.Rules;
+using Iql.Entities.Rules;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
 {
     public class RuleMap<TEntity, TRule> : IRuleMap
-        where TRule: Rule<TEntity>
+        where TRule: IRule
     {
         private readonly Dictionary<string, EntityPropertyRuleMap<TEntity, TRule>> _properties = new Dictionary<string, EntityPropertyRuleMap<TEntity, TRule>>();
         private readonly List<TRule> _validationExpressions = new List<TRule>();

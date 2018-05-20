@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using Iql.Queryable.Data.EntityConfiguration;
+﻿using Iql.Entities;
 
 namespace Brandless.AspNetCore.OData.Extensions
 {

@@ -6,7 +6,7 @@ using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Reports;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
-using Iql.Queryable.Data.EntityConfiguration;
+using Iql.Entities;
 using Microsoft.OData.Edm;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
@@ -20,6 +20,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             ValidationMap = new EntityValidationMap<TEntity>();
             DisplayRuleMap = new DisplayRuleMap<TEntity>();
             DisplayTextFormatterMap = new EntityDisplayTextFormatterMap<TEntity>();
+            RelationshipFilterMap = new RelationshipFilterRuleMap<TEntity>();
             AnnotationsManager = new AnnotationManager<TEntity>(model);
             ReportDefinitions = new ReportDefinitionMap<TEntity>();
         }
@@ -28,6 +29,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         public IEntityMetadata Metadata { get; set; } = new EntityMetadata();
         public EntityValidationMap<TEntity> ValidationMap { get; set; }
         public DisplayRuleMap<TEntity> DisplayRuleMap { get; set; }
+        public RelationshipFilterRuleMap<TEntity> RelationshipFilterMap { get; set; }
         internal AnnotationManager<TEntity> AnnotationsManager { get; }
         public ReportDefinitionMap<TEntity> ReportDefinitions { get; }
 

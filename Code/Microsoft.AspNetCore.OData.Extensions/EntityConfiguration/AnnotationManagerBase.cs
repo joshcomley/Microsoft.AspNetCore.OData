@@ -2,9 +2,9 @@
 using System.Linq;
 using System.Reflection;
 using System.Xml;
+using Iql.Conversion;
 using Iql.DotNet;
-using Iql.Queryable.Data.EntityConfiguration;
-using Iql.Queryable.Expressions;
+using Iql.Entities;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Validation;

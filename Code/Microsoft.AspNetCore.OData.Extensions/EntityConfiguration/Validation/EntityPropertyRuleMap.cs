@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using Iql.Queryable.Data.EntityConfiguration.Rules;
+using Iql.Entities.Rules;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation
 {
     public class EntityPropertyRuleMap<TEntity, TRule>
-    where TRule : Rule<TEntity>
+    where TRule : IRule
     {
         public IReadOnlyList<TRule> Rules => _rules.AsReadOnly();
         public string PropertyName { get; }

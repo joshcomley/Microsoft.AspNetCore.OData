@@ -5,12 +5,10 @@ using System.Linq;
 using System.Reflection;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
-using Iql.Queryable.Data.EntityConfiguration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.AspNetCore.OData.Extensions;
-using Microsoft.AspNetCore.OData.Formatter;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OData.Edm;
 

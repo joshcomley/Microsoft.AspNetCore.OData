@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Display;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
-using Iql.Queryable.Data.EntityConfiguration;
+using Iql.Entities;
 
 namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 {

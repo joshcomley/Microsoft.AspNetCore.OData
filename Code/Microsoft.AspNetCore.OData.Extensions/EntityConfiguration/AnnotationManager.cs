@@ -8,10 +8,11 @@ using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Display;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Iql.DotNet.Serialization;
-using Iql.Queryable.Data.EntityConfiguration;
-using Iql.Queryable.Data.EntityConfiguration.Rules;
-using Iql.Queryable.Data.EntityConfiguration.Rules.Display;
-using Iql.Queryable.Data.EntityConfiguration.Validation;
+using Iql.Entities;
+using Iql.Entities.Rules;
+using Iql.Entities.Rules.Display;
+using Iql.Entities.Rules.Relationship;
+using Iql.Entities.Validation;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
@@ -90,27 +91,64 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         }
 
         public void AddDisplayRuleAnnotation(
-            Expression<Func<TEntity, bool>> validationExpression,
+            Expression<Func<TEntity, bool>> displayRuleExpression,
             string message,
             string key,
             Expression<Func<TEntity, object>> propertyExpression,
             DisplayRuleKind kind = DisplayRuleKind.NewAndEdit
-            )
+        )
         {
-            var displayRule = new DisplayRule<TEntity>(validationExpression, key, message);
+            var displayRule = new DisplayRule<TEntity>(displayRuleExpression, key, message);
             displayRule.Kind = kind;
             MapRule(propertyExpression, displayRule, "DisplayRule", Model.ModelConfiguration().ForEntityType<TEntity>().DisplayRuleMap,
                 expressions =>
                 {
                     expressions.Add(new EdmLabeledExpression(nameof(IDisplayRule.Kind),
-                        new EdmIntegerConstant((long) displayRule.Kind)));
+                        new EdmIntegerConstant((long)displayRule.Kind)));
                 });
+        }
+
+        public void AddRelationshipFilterAnnotation<TRelationship>(
+            Expression<Func<TEntity, TRelationship>> propertyExpression,
+            Expression<Func<RelationshipFilterContext<TEntity>, Expression<Func<TRelationship, bool>>>> filterExpression,
+            string message,
+            string key
+        )
+        {
+            //var iql = IqlXmlSerializer.SerializeToXml(filterExpression);
+            var rule = new RelationshipFilterRule<TEntity, TRelationship>(filterExpression, key, message);
+            //var expressionToSerialize = rule.Expression;
+            MapRule(
+                propertyExpression.GetAccessedProperty().Name,
+                rule,
+                "RelationshipFilter",
+                Model.ModelConfiguration().ForEntityType<TEntity>().RelationshipFilterMap,
+                null,
+                filterExpression);
+        }
+
+        public void AddRelationshipFilterAnnotation<TRelationship>(
+            Expression<Func<TEntity, IEnumerable<TRelationship>>> propertyExpression,
+            Expression<Func<RelationshipFilterContext<TEntity>, Expression<Func<TRelationship, bool>>>> filterExpression,
+            string message,
+            string key
+        )
+        {
+            //var iql = IqlXmlSerializer.SerializeToXml(filterExpression);
+            var rule = new RelationshipFilterRule<TEntity, TRelationship>(filterExpression, key, message);
+            //var expressionToSerialize = (rule.Expression.Body as UnaryExpression).Operand as LambdaExpression;
+            MapRule(
+                propertyExpression.GetAccessedProperty().Name,
+                rule,
+                "RelationshipFilter",
+                Model.ModelConfiguration().ForEntityType<TEntity>().RelationshipFilterMap,
+                null,
+                filterExpression);
         }
 
         private void MapRule(Expression<Func<TEntity, object>> propertyExpression, IRule rule, string containerName, IRuleMap ruleMap,
             Action<List<IEdmExpression>> customise = null)
         {
-            var iql = IqlXmlSerializer.SerializeToXml(rule.Expression);
             string propertyName = null;
 
             if (propertyExpression != null)
@@ -118,12 +156,27 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 propertyName = propertyExpression.GetAccessedProperty().Name;
                 //InitializeProperty(propertyName);
             }
+            MapRule(propertyName, rule, containerName, ruleMap, customise);
+        }
 
-            var expression = new EdmStringConstant(iql);
+        private void MapRule(string propertyName, IRule rule, string containerName, IRuleMap ruleMap, Action<List<IEdmExpression>> customise = null)
+        {
+            MapRule(propertyName, rule, containerName, ruleMap, customise, rule.Expression);
+        }
+
+        private void MapRule(
+            string propertyName, 
+            IRule rule, 
+            string containerName, 
+            IRuleMap ruleMap, 
+            Action<List<IEdmExpression>> customise,
+            LambdaExpression expressionToSerialize)
+        {
+            var expression = new EdmStringConstant(IqlXmlSerializer.SerializeToXml(expressionToSerialize));
             var expressionLabel = new EdmLabeledExpression("Expression", expression);
             var messageLabel = new EdmLabeledExpression("Message", new EdmStringConstant(rule.Message ?? ""));
             var keyLabel = new EdmLabeledExpression("Key", new EdmStringConstant(rule.Key ?? ""));
-            var expressions = new List<IEdmExpression>(new[]{keyLabel, expressionLabel, messageLabel});
+            var expressions = new List<IEdmExpression>(new[] {keyLabel, expressionLabel, messageLabel});
             customise?.Invoke(expressions);
             var coll = new EdmCollectionExpression(expressions.ToArray());
 
