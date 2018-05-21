@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Xml;
+using System.Xml.Serialization;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Display;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Validation;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
@@ -169,10 +172,10 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         }
 
         private void MapRule(
-            string propertyName, 
-            IRule rule, 
-            string containerName, 
-            IRuleMap ruleMap, 
+            string propertyName,
+            IRule rule,
+            string containerName,
+            IRuleMap ruleMap,
             Action<List<IEdmExpression>> customise,
             LambdaExpression expressionToSerialize)
         {
@@ -180,7 +183,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             var expressionLabel = new EdmLabeledExpression("Expression", expression);
             var messageLabel = new EdmLabeledExpression("Message", new EdmStringConstant(rule.Message ?? ""));
             var keyLabel = new EdmLabeledExpression("Key", new EdmStringConstant(rule.Key ?? ""));
-            var expressions = new List<IEdmExpression>(new[] {keyLabel, expressionLabel, messageLabel});
+            var expressions = new List<IEdmExpression>(new[] { keyLabel, expressionLabel, messageLabel });
             customise?.Invoke(expressions);
             var coll = new EdmCollectionExpression(expressions.ToArray());
 
@@ -229,23 +232,65 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             else if (objectType.IsCollection())
             {
                 var enumerable = obj as IEnumerable;
-                if (enumerable != null)
+                if (enumerable != null && enumerable.Cast<object>().Any())
                 {
-                    var arr = new List<IEdmExpression>();
-                    foreach (var value in enumerable)
+                    var elementType = enumerable.GetType().GetGenericArguments()[0];
+                    if (elementType.IsClass && elementType != typeof(string))
                     {
-                        var edmExpression = GetExpression(value, null);
-                        if (edmExpression != null)
+                        XmlSerializer xsSubmit = new XmlSerializer(obj.GetType());
+                        var xml = "";
+
+                        using (var sww = new StringWriter())
                         {
-                            arr.Add(edmExpression);
+                            using (XmlWriter writer = XmlWriter.Create(sww))
+                            {
+                                xsSubmit.Serialize(writer, obj);
+                                xml = sww.ToString(); // Your XML
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(xml))
+                        {
+                            expression = new EdmStringConstant(xml);
                         }
                     }
-
-                    if (arr.Any())
+                    else
                     {
-                        var collectionExpression = new EdmCollectionExpression(arr);
-                        expression = collectionExpression;
+                        var arr = new List<IEdmExpression>();
+                        foreach (var value in enumerable)
+                        {
+                            var edmExpression = GetExpression(value, null);
+                            if (edmExpression != null)
+                            {
+                                arr.Add(edmExpression);
+                            }
+                        }
+
+                        if (arr.Any())
+                        {
+                            var collectionExpression = new EdmCollectionExpression(arr);
+                            expression = collectionExpression;
+                        }
                     }
+                }
+            }
+            else if (objectType.IsClass)
+            {
+                XmlSerializer xsSubmit = new XmlSerializer(obj.GetType());
+                var xml = "";
+
+                using (var sww = new StringWriter())
+                {
+                    using (XmlWriter writer = XmlWriter.Create(sww))
+                    {
+                        xsSubmit.Serialize(writer, obj);
+                        xml = sww.ToString(); // Your XML
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(xml))
+                {
+                    expression = new EdmStringConstant(xml);
                 }
             }
 
@@ -305,7 +350,10 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             //var config2 = GetConfigurationAnnotation(propertyName);
             //config2.MetadataAnnotation = container2;
             //return;
-
+            if (propertyName == "PostCode")
+            {
+                int a = 0;
+            }
             if (metadata != null)
             {
                 var expressions = new List<IEdmExpression>();
