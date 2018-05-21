@@ -95,16 +95,20 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             string message,
             string key,
             Expression<Func<TEntity, object>> propertyExpression,
-            DisplayRuleKind kind = DisplayRuleKind.NewAndEdit
+            DisplayRuleKind kind = DisplayRuleKind.DisplayIf,
+            DisplayRuleAppliesToKind appliesToKind = DisplayRuleAppliesToKind.NewAndEdit
         )
         {
             var displayRule = new DisplayRule<TEntity>(displayRuleExpression, key, message);
             displayRule.Kind = kind;
+            displayRule.AppliesToKind = appliesToKind;
             MapRule(propertyExpression, displayRule, "DisplayRule", Model.ModelConfiguration().ForEntityType<TEntity>().DisplayRuleMap,
                 expressions =>
                 {
                     expressions.Add(new EdmLabeledExpression(nameof(IDisplayRule.Kind),
                         new EdmIntegerConstant((long)displayRule.Kind)));
+                    expressions.Add(new EdmLabeledExpression(nameof(IDisplayRule.AppliesToKind),
+                        new EdmIntegerConstant((long)displayRule.AppliesToKind)));
                 });
         }
 

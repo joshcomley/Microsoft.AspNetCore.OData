@@ -6,15 +6,22 @@ namespace Brandless.AspNetCore.OData.Extensions
     {
         public PropertyMetadataConfigurator(IPropertyMetadata metadata) : base(metadata) { }
 
+        public PropertyMetadataConfigurator SetReadOnlyAndHidden(bool value = true)
+        {
+            Metadata.ReadOnly = value;
+            Metadata.Hidden = value;
+            return this;
+        }
+
         public PropertyMetadataConfigurator SetReadOnly(bool value = true)
         {
-            Metadata.ReadOnly = true;
+            Metadata.ReadOnly = value;
             return this;
         }
 
         public PropertyMetadataConfigurator SetHidden(bool value = true)
         {
-            Metadata.Hidden = true;
+            Metadata.Hidden = value;
             return this;
         }
 

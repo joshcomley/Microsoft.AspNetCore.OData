@@ -1,11 +1,32 @@
-﻿using Iql.Entities;
+﻿using System;
+using System.Linq;
+using System.Linq.Expressions;
+using Iql.Conversion;
+using Iql.Entities;
 
 namespace Brandless.AspNetCore.OData.Extensions
 {
+    public class EntityMetadataConfigurator<T> : EntityMetadataConfigurator
+    {
+        public EntityMetadataConfigurator(IEntityMetadata metadata) : base(metadata) { }
+
+        public EntityMetadataConfigurator SetPropertyOrder(params Expression<Func<T, object>>[] propertyExpression)
+        {
+            SetPropertyOrder(propertyExpression.Select(p => IqlConverter.Instance.GetPropertyName(p)).ToArray());
+            return this;
+        }
+    }
     public class EntityMetadataConfigurator : MetadataConfigurator<IEntityMetadata, EntityMetadataConfigurator>
     {
         public EntityMetadataConfigurator(IEntityMetadata metadata) : base(metadata)
         {
+        }
+
+
+        public EntityMetadataConfigurator SetPropertyOrder(params string[] properties)
+        {
+            Metadata.PropertyOrder = properties.ToList();
+            return this;
         }
 
         public EntityMetadataConfigurator SetEntitySetFriendlyName(string friendlyName)

@@ -110,7 +110,8 @@ namespace Brandless.AspNetCore.OData.Extensions
             Expression<Func<TEntity, bool>> displayRuleExpression,
             string message = null,
             string key = null,
-            DisplayRuleKind kind = DisplayRuleKind.NewAndEdit)
+            DisplayRuleKind kind = DisplayRuleKind.DisplayIf,
+            DisplayRuleAppliesToKind appliesToKind = DisplayRuleAppliesToKind.NewAndEdit)
         {
             model.ModelConfiguration()
                 .ForEntityType<TEntity>()
@@ -161,23 +162,30 @@ namespace Brandless.AspNetCore.OData.Extensions
             return model;
         }
 
-        public static EntityMetadataConfigurator Entity<TEntity>(
+        public static EntityMetadataConfigurator<TEntity> Entity<TEntity>(
             this EdmModel model,
             Action<IEntityMetadata> metadataExpression = null)
         {
-            return model.Entity(typeof(TEntity), metadataExpression);
+            var metadata = model.ModelConfiguration()
+                .ForEntityType(typeof(TEntity))
+                .Metadata;
+            metadataExpression?.Invoke(metadata);
+            return new EntityMetadataConfigurator<TEntity>(metadata);
         }
 
+        private static MethodInfo _entityMethodGeneric;
         public static EntityMetadataConfigurator Entity(
             this EdmModel model,
             Type entityType,
             Action<IEntityMetadata> metadataExpression = null)
         {
-            var propertyMetadata = model.ModelConfiguration()
-                .ForEntityType(entityType)
-                .Metadata;
-            metadataExpression?.Invoke(propertyMetadata);
-            return new EntityMetadataConfigurator(propertyMetadata);
+            _entityMethodGeneric = _entityMethodGeneric ?? typeof(ODataExtensionsEdmModelExtensions)
+                                       .GetMethods(BindingFlags.Static | BindingFlags.Public)
+                                       .Single(m => m.Name == nameof(Entity) && m.ContainsGenericParameters);
+            return (EntityMetadataConfigurator)
+                _entityMethodGeneric
+                    .MakeGenericMethod(entityType)
+                    .Invoke(null, new object[] {model, metadataExpression});
         }
 
         public static void ForAllEntityTypes(this EdmModel model, Action<IEntityMetadata> action, params Type[] types)
