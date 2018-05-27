@@ -933,17 +933,18 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual Task OnAfterPostAsync(T currentEntity, T patchEntity, JObject jObject)
         {
-            return TryProcessNestedSet(currentEntity, null);
+            return TryProcessNestedSet(currentEntity, null, null);
         }
 
         public virtual Task OnBeforePatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
         {
-            return TryProcessNestedSet(patchEntity, currentEntity);
+            return TryProcessNestedSet(patchEntity, currentEntity, jObject);
         }
 
         public virtual Task OnAfterPatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
         {
             return Task.FromResult(true);
+            //return TryProcessNestedSet(patchEntity, currentEntity);
         }
 
         public virtual Task OnBeforeFilterLegalPropertiesAsync(T currentEntity, T patchEntity, JObject jObject)
@@ -983,64 +984,113 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         }
 
         protected virtual async Task ProcessNestedSetAsync<TKey, TNullableKey, TTreeKey>(
-            IMpttDynamic<TKey, TNullableKey, TTreeKey> mptt, IMpttDynamic<TKey, TNullableKey, TTreeKey> existing = null)
+            object mptt,
+            object existing = null,
+            JObject patch = null)
         {
             var tableName = Data.Context.Model.FindEntityType(mptt.GetType()).Relational().TableName;
             var manager =
-                new MpttManager<TKey, TNullableKey, TTreeKey>(() => Services.GetService<TDbContextSecured>(), mptt.Key, tableName: tableName);
+                new MpttManager<TKey, TNullableKey, TTreeKey>(() => Services.GetService<TDbContextSecured>(), default(TTreeKey), tableName: tableName);
+            ConfigureNestedSetsManager(manager);
             var idProperty = typeof(T).GetProperty(nameof(IMpttDynamic<TKey, TNullableKey, TTreeKey>.Id));
 
-            TKey GetId(IMpttDynamic<TKey, TNullableKey, TTreeKey> entity)
+            TKey GetId(object entity)
             {
                 return (TKey)idProperty.GetValue(entity);
             }
 
+            TProperty Get<TProperty>(object entity, string propertyName)
+            {
+                return (TProperty)typeof(T).GetProperty(propertyName).GetValue(entity);
+            }
+            void Set(object entity, string propertyName, object value)
+            {
+                typeof(T).GetProperty(propertyName).SetValue(entity, value);
+            }
             if (existing == null)
             {
-                if (!Equals(default(TNullableKey), mptt.ParentId))
+                manager.TreeKey = Get<TTreeKey>(mptt, manager.KeyColumnName);
+                while (true)
                 {
-                    await manager.InsertAsChildOfAsync(GetId(mptt), mptt.ParentId);
+                    var parentId = Get<TNullableKey>(mptt, manager.ParentIdColumnName);
+                    if (!Equals(default(TNullableKey), parentId))
+                    {
+                        await manager.InsertAsChildOfAsync(GetId(mptt), parentId);
+                        break;
+                    }
+
+                    var leftOf = Get<TNullableKey>(mptt, manager.LeftOfColumnName);
+                    if (!Equals(default(TNullableKey), leftOf))
+                    {
+                        await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)leftOf);
+                        break;
+                    }
+
+                    var rightOf = Get<TNullableKey>(mptt, manager.LeftOfColumnName);
+                    if (!Equals(default(TNullableKey), rightOf))
+                    {
+                        await manager.InsertToRightOfAsync(GetId(mptt), (TKey)(object)rightOf);
+                        break;
+                    }
+
+                    await manager.InsertAsChildOfAsync(GetId(mptt));
+                    break;
                 }
-                else if (!Equals(default(TNullableKey), mptt.LeftOf))
-                {
-                    await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)mptt.LeftOf);
-                }
-                else if (!Equals(default(TNullableKey), mptt.RightOf))
-                {
-                    await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)mptt.RightOf);
-                }
+
             }
             else
             {
-                manager.TreeKey = existing.Key;
-                if (!Equals(existing.ParentId, mptt.ParentId))
+                manager.TreeKey = Get<TTreeKey>(existing, manager.KeyColumnName);
+                var pairs = new[]
                 {
-                    await manager.MoveToAsync(GetId(mptt), (TKey)(object)mptt.ParentId, NodeMoveKind.Beneath);
-                }
-                else if (!Equals(default(TNullableKey), mptt.LeftOf))
+                    (Column: manager.ParentIdColumnName, Kind: NodeMoveKind.Beneath),
+                    (Column: manager.LeftOfColumnName, Kind: NodeMoveKind.Left),
+                    (Column: manager.RightOfColumnName, Kind: NodeMoveKind.Right),
+                };
+                var updateRan = false;
+                foreach (var pair in pairs)
                 {
-                    await manager.MoveToAsync(GetId(mptt), (TKey)(object)mptt.LeftOf, NodeMoveKind.Left);
+                    if (patch.ContainsKey(pair.Column))
+                    {
+                        TNullableKey newPartner = patch[pair.Column].GetValue<TNullableKey>();
+                        if (!Equals(newPartner, Get<TNullableKey>(existing, pair.Column)))
+                        {
+                            await manager.MoveToAsync(GetId(mptt), newPartner, pair.Kind);
+                        }
+
+                        updateRan = true;
+                        break;
+                    }
                 }
-                else if (!Equals(default(TNullableKey), mptt.RightOf))
+
+                if (updateRan)
                 {
-                    await manager.MoveToAsync(GetId(mptt), (TKey)(object)mptt.RightOf, NodeMoveKind.Right);
+                    var updated = await Services.GetService<TDbContextSecured>().Set<T>().FindAsync(GetId(mptt));
+                    Set(mptt, manager.ParentIdColumnName, Get<TKey>(updated, manager.ParentIdColumnName));
+                    Set(mptt, manager.LevelColumnName, Get<TKey>(updated, manager.LevelColumnName));
+                    Set(mptt, manager.LeftColumnName, Get<TKey>(updated, manager.LeftColumnName));
+                    Set(mptt, manager.RightColumnName, Get<TKey>(updated, manager.RightColumnName));
+                    Set(existing, manager.ParentIdColumnName, Get<TKey>(updated, manager.ParentIdColumnName));
+                    Set(existing, manager.LevelColumnName, Get<TKey>(updated, manager.LevelColumnName));
+                    Set(existing, manager.LeftColumnName, Get<TKey>(updated, manager.LeftColumnName));
+                    Set(existing, manager.RightColumnName, Get<TKey>(updated, manager.RightColumnName));
                 }
-                var updated = (IMpttDynamic<TKey, TNullableKey, TTreeKey>)await Services.GetService<TDbContextSecured>().Set<T>().FindAsync(GetId(mptt));
-                mptt.Left = updated.Left;
-                mptt.Right = updated.Right;
-                existing.Left = updated.Left;
-                existing.Right = updated.Right;
             }
         }
 
-        private async Task TryProcessNestedSet(T currentEntity, T existingEntity)
+        public virtual void ConfigureNestedSetsManager<TKey, TNullableKey, TTreeKey>(MpttManager<TKey, TNullableKey, TTreeKey> manager)
+        {
+
+        }
+
+        protected virtual async Task TryProcessNestedSet(T currentEntity, T existingEntity, JObject patch)
         {
             var baseType = typeof(T).TryGetBaseType(typeof(IMpttDynamic<,,>));
             if (baseType != null)
             {
                 var method = GetType().GetMethod(nameof(ProcessNestedSetAsync), BindingFlags.Instance | BindingFlags.NonPublic);
                 await (Task)method.MakeGenericMethod(baseType.Type.GenericTypeArguments.ToArray())
-                    .Invoke(this, new object[] { currentEntity, existingEntity });
+                    .Invoke(this, new object[] { currentEntity, existingEntity, patch });
             }
         }
     }
