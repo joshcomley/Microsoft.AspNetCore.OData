@@ -19,6 +19,38 @@ namespace Brandless.AspNetCore.OData.Extensions
             return this;
         }
 
+        public PropertyMetadataConfigurator SetSearchable(bool value = true)
+        {
+            Metadata.Searchable = value;
+            return this;
+        }
+
+        public PropertyMetadataConfigurator SetSortable(bool value = true)
+        {
+            Metadata.Sortable = value;
+            return this;
+        }
+
+
+        public PropertyMetadataConfigurator SetNonSearchable()
+        {
+            SetSearchable(false);
+            return this;
+        }
+
+        public PropertyMetadataConfigurator SetNonSortable()
+        {
+            SetSortable(false);
+            return this;
+        }
+
+        public PropertyMetadataConfigurator SetNonSearchableNorSortable()
+        {
+            SetNonSearchable();
+            SetNonSortable();
+            return this;
+        }
+
         public PropertyMetadataConfigurator SetHidden(bool value = true)
         {
             Metadata.Hidden = value;
