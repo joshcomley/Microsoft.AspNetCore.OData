@@ -16,9 +16,11 @@ namespace Microsoft.AspNetCore.OData.Extensions
 
         public static async Task<List<T>> ToListWithODataRequestAsync<T>(
             this IQueryable<T> queryable,
-            HttpRequest request)
+            HttpRequest request,
+            bool ignoreSkip = false,
+            bool ignoreTop = false)
         {
-            var json = await ModernOutputFormatter.SerializeToJsonAsync(queryable, request);
+            var json = await ModernOutputFormatter.SerializeToJsonAsync(queryable, request, ignoreSkip, ignoreTop);
             var data = JsonConvert.DeserializeObject<ODataResponse<T>>(json);
             return data.Value;
         }

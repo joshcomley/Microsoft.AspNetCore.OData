@@ -268,6 +268,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     return this.ODataModelStateError();
                 }
                 //var locationUri = $"{req.Protocol}://{req.Host}/{req.Path}/{Crud.EntityId(entity)}";
+                RevisionKeyGenerator?.TryApply(entity);
                 var result = await Crud.Secured.AddAndSaveAsync(entity);
                 if (!result.Success)
                 {
@@ -537,6 +538,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                     // We have a key change
                 }
             }
+            RevisionKeyGenerator?.TryApply(currentDatabaseEntity);
             var oDataActionResult = await UpdateAsync(currentDatabaseEntity);
             var result = ResolveHttpResult(oDataActionResult);
             await OnAfterPatchAsync(keys, currentDatabaseEntity, patchEntity, value);

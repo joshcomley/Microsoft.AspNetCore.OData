@@ -37,7 +37,9 @@ namespace Microsoft.AspNetCore.OData
         public virtual async Task<object> ProcessQueryAsync(
             HttpRequest request,
             object value,
-            Type elementClrType)
+            Type elementClrType,
+            bool ignoreSkip = false,
+            bool ignoreTop = false)
         {
             var model = request.ODataFeature().Model;
             if (request.GetDisplayUrl() == null || value == null ||
@@ -65,7 +67,14 @@ namespace Microsoft.AspNetCore.OData
             }
 
             var queryOptions = new ODataQueryOptions(queryContext, request, request.HttpContext.RequestServices);
-
+            if (ignoreSkip)
+            {
+                queryOptions.IgnoreSkip = true;
+            }
+            if (ignoreSkip)
+            {
+                queryOptions.IgnoreTop = true;
+            }
             var processedResult = await ApplyQueryOptionsAsync(
                 value,
                 queryOptions);
@@ -236,10 +245,10 @@ namespace Microsoft.AspNetCore.OData
 
                 //var pageSize = ResolvePageSize(settings, actionDescriptor);
                 query = queryOptions.ApplyTo(query, new ODataQuerySettings
-                    {
-                        HandleNullPropagation = HandleNullPropagationOption.False
-                    },
-                    PageSize);
+                {
+                    HandleNullPropagation = HandleNullPropagationOption.False
+                },
+                    PageSize, queryOptions);
             }
             return query;
         }
@@ -272,7 +281,7 @@ namespace Microsoft.AspNetCore.OData
 
             if (shouldApplyQuery)
             {
-                query = queryOptions.ApplyTo(query as IQueryable, QuerySettings, PageSize);//, ResolvePageSize(_querySettings, actionDescriptor));
+                query = queryOptions.ApplyTo(query as IQueryable, QuerySettings, PageSize, queryOptions);//, ResolvePageSize(_querySettings, actionDescriptor));
             }
             return query;
         }

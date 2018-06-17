@@ -513,7 +513,7 @@ End Function");
             //    formatter = formatterMap.Default;
             //}
             //var personNameFormatted = formatter.Format(person);
-            var data = await queryable.ToListWithODataRequestAsync(request);
+            var data = await queryable.ToListWithODataRequestAsync(request, true, true);
             return ListToExcel(request, data, model);
             //var dataSet = ListConvertor.ConvertToDataSet(data);
             //var memoryStream = new MemoryStream();

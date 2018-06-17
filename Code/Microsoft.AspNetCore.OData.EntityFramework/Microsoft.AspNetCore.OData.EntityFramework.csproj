@@ -7,8 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="Brandless" Version="0.0.11" />
-    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10026" />
-    <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10026" />
+    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10028" />
+    <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10028" />
     <PackageReference Include="EPPlus" Version="4.5.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.2.0.1-preview4-t002" />

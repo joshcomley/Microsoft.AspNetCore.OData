@@ -5,6 +5,7 @@ using System.Reflection;
 using Brandless.Data.Contracts;
 using Brandless.Data.Entities;
 using Iql.DotNet.Extensions;
+using Iql.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.OData.Builder;
 using Microsoft.OData.Edm;
@@ -65,17 +66,6 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
         }
 
         [ConfigureEntity]
-        public void ConfigureIRevisionable<T>(EdmModel model)
-            where T : IRevisionable
-        {
-            model
-                .Property<T>(p => p.RevisionKey)
-                .SetReadOnly()
-                .SetHidden()
-                ;
-        }
-
-        [ConfigureEntity]
         public void ConfigureIHasDescription<T>(EdmModel model)
             where T : IHasDescription
         {
@@ -99,7 +89,17 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             model.Property<T>(p => p.CreatedByUserId).SetReadOnly();
             model.Property<T>(p => p.Guid).SetReadOnly().SetHidden();
             model.Property<T>(p => p.PersistenceKey).SetReadOnly().SetHidden();
-            model.Property<T>(p => p.Version).SetReadOnly().SetHidden();
+        }
+
+        [ConfigureEntity]
+        public void ConfigureIRevisionable<T>(EdmModel model)
+            where T : IRevisionable
+        {
+            model
+                .Property<T>(p => p.RevisionKey)
+                .SetReadOnly()
+                .SetHidden()
+                .SetHint(KnownHints.Version);
         }
 
         [ConfigureEntity]

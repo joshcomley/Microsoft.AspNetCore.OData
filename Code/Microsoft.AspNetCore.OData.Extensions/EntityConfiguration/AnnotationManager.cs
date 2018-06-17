@@ -196,7 +196,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 validationObject, propertyName);
         }
 
-        private IEdmExpression GetExpression(object obj, Type objectType)
+        private IEdmExpression GetExpression(object obj, Type objectType, PropertyInfo property)
         {
             if (obj == null)
             {
@@ -210,7 +210,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
             {
                 expression = new EdmStringConstant(obj as string);
             }
-            else if ((objectType == typeof(bool) && !Equals(false, obj)) || nullableUnderlyingType == typeof(bool))
+            else if ((objectType == typeof(bool) && !Equals(property == null ? false : property.GetValue(Activator.CreateInstance(property.DeclaringType)), obj)) || nullableUnderlyingType == typeof(bool))
             {
                 expression = new EdmBooleanConstant((bool)obj);
             }
@@ -259,7 +259,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                         var arr = new List<IEdmExpression>();
                         foreach (var value in enumerable)
                         {
-                            var edmExpression = GetExpression(value, null);
+                            var edmExpression = GetExpression(value, null, null);
                             if (edmExpression != null)
                             {
                                 arr.Add(edmExpression);
@@ -361,7 +361,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 var runtimeProperties = type.GetTypeInfo().GetRuntimeProperties();
                 foreach (var property in runtimeProperties)
                 {
-                    var edmExpression = GetExpression(property.GetValue(metadata), property.PropertyType);
+                    var edmExpression = GetExpression(property.GetValue(metadata), property.PropertyType, property);
                     if (edmExpression != null)
                     {
                         var label = new EdmLabeledExpression(property.Name, edmExpression);

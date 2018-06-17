@@ -163,9 +163,11 @@ namespace Microsoft.AspNetCore.OData.Query
         /// </summary>
         /// <param name="query">The original <see cref="IQueryable"/>.</param>
         /// <param name="querySettings">The settings to use in query composition.</param>
-		/// <param name="pageSize">The page size for this query</param>
+        /// <param name="pageSize">The page size for this query</param>
+        /// <param name="queryOptions"></param>
         /// <returns>The new <see cref="IQueryable"/> after the query has been applied to.</returns>
-        public virtual IQueryable ApplyTo(IQueryable query, ODataQuerySettings querySettings, int? pageSize)
+        public virtual IQueryable ApplyTo(IQueryable query, ODataQuerySettings querySettings, int? pageSize,
+            ODataQueryOptions queryOptions)
         {
             if (query == null)
             {
@@ -184,8 +186,8 @@ namespace Microsoft.AspNetCore.OData.Query
             // If either is present in the query and we have permission,
             // generate an $orderby that will produce a stable sort.
             if (querySettings.EnsureStableOrdering &&
-                (Skip != null ||
-                 Top != null ||
+                ((Skip != null && queryOptions.IgnoreSkip == false) ||
+                 (Top != null && queryOptions.IgnoreTop == false) ||
                  pageSize.HasValue))
             {
                 // If there is no OrderBy present, we manufacture a default.
@@ -212,7 +214,7 @@ namespace Microsoft.AspNetCore.OData.Query
                 query = orderBy.ApplyTo(query, querySettings);
             }
 
-            if (Skip.HasValue)
+            if (Skip.HasValue && queryOptions.IgnoreSkip == false)
             {
                 query = ExpressionHelpers.Skip(query, Skip.Value, Context.ElementClrType, false);
             }
@@ -222,7 +224,7 @@ namespace Microsoft.AspNetCore.OData.Query
             {
                 take = Math.Min(querySettings.PageSize.Value, int.MaxValue);
             }
-            if (Top.HasValue)
+            if (Top.HasValue && queryOptions.IgnoreTop == false)
             {
                 take = Math.Min(Top.Value, take ?? int.MaxValue);
             }
@@ -371,6 +373,8 @@ namespace Microsoft.AspNetCore.OData.Query
         }
 
         public SkipQueryOption SkipQueryOption { get; set; }
+        public bool IgnoreSkip { get; set; }
+        public bool IgnoreTop { get; set; }
 
         private static void ThrowIfEmpty(string queryValue, string queryName)
         {

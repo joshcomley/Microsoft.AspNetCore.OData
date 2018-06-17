@@ -113,10 +113,12 @@ namespace Microsoft.AspNetCore.OData.Formatter
 
         public static async Task<string> SerializeToJsonAsync<T>(
             IQueryable<T> queryable,
-            HttpRequest request)
+            HttpRequest request,
+            bool ignoreSkip = false,
+            bool ignoreTop = false)
         {
             var odataQueryApplicator = new ODataQueryApplicator();
-            var data = await odataQueryApplicator.ProcessQueryAsync(request, queryable, typeof(T));
+            var data = await odataQueryApplicator.ProcessQueryAsync(request, queryable, typeof(T), ignoreSkip, ignoreTop);
             var stringWriter = new StringWriter();
             var serializer = new ODataJsonSerializer(new OutputFormatterWriteContext(
                 request.HttpContext,
