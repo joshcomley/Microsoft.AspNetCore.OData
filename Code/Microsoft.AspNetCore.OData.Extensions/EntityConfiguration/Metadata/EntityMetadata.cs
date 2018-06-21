@@ -18,5 +18,7 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata
         public EntityManageKind ManageKind { get; set; }
         public string SetFriendlyName { get; set; }
         public string SetName { get; set; }
+        public string DefaultSortExpression { get; set; }
+        public bool DefaultSortDescending { get; set; }
     }
 }

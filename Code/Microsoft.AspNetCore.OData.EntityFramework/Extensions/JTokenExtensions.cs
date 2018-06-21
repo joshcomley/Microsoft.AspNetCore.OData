@@ -27,6 +27,15 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Extensions
 
         public static bool ValueEquals(this JToken token, object value, Type valueType)
         {
+            var underlyingType = Nullable.GetUnderlyingType(valueType);
+            if (valueType == typeof(Guid) || underlyingType == typeof(Guid))
+            {
+                var guidValue = token.Value<string>();
+                if (!string.IsNullOrWhiteSpace(guidValue) && !Equals(null, value))
+                {
+                    return new Guid(guidValue) == (Guid)value;
+                }
+            }
             return (bool)ValueEqualsTypedMethod.MakeGenericMethod(valueType).Invoke(null, new object[] { token, value });
         }
 
@@ -37,6 +46,17 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Extensions
 
         public static object GetValue(this JToken token, Type valueType)
         {
+            var underlyingType = Nullable.GetUnderlyingType(valueType);
+            if (valueType == typeof(Guid) || underlyingType == typeof(Guid))
+            {
+                var guidValue = token.Value<string>();
+                if (!string.IsNullOrWhiteSpace(guidValue))
+                {
+                    return new Guid(guidValue);
+                }
+
+                return null;
+            }
             return GetValueTypedMethod.MakeGenericMethod(valueType)
                 .Invoke(null, new object[] { token });
         }

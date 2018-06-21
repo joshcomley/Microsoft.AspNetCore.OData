@@ -808,7 +808,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             //{
             //    return securityFilterResult;
             //}
-            var result = await DeleteEntity(keys);
+            var result = await DeleteEntity(keys, Crud.Secured.Find(keys));
             switch (result.Result)
             {
                 case DeleteEntityResult.NotFound:
@@ -819,7 +819,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Ok();
         }
 
-        protected virtual async Task<DeleteActionResult> DeleteEntity(KeyValuePair<string, object>[] key)
+        protected virtual async Task<DeleteActionResult> DeleteEntity(KeyValuePair<string, object>[] key, T entity)
         {
             var result = await Crud.Secured.DeleteAndSaveAsync(key);
             return result;

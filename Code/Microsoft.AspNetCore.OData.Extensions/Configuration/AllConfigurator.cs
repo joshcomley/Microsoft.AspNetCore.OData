@@ -77,6 +77,7 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
             where T : ICreatedDate
         {
             model.Property<T>(p => p.CreatedDate).SetReadOnly();
+            model.Entity<T>().SetDefaultSortExpression(nameof(ICreatedDate.CreatedDate)).SetDefaultSortDescending();
         }
 
         [ConfigureEntity]

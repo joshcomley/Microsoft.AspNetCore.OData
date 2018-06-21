@@ -22,6 +22,17 @@ namespace Brandless.AspNetCore.OData.Extensions
         {
         }
 
+        public EntityMetadataConfigurator SetDefaultSortExpression(string expression)
+        {
+            Metadata.DefaultSortExpression = expression;
+            return this;
+        }
+
+        public EntityMetadataConfigurator SetDefaultSortDescending(bool descending = true)
+        {
+            Metadata.DefaultSortDescending = descending;
+            return this;
+        }
 
         public EntityMetadataConfigurator SetPropertyOrder(params string[] properties)
         {
