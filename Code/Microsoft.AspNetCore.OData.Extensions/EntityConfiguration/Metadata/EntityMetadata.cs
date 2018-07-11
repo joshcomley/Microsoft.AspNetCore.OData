@@ -15,6 +15,8 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration.Metadata
             throw new System.NotImplementedException();
         }
 
+        public string TitlePropertyName { get; set; }
+        public string PreviewPropertyName { get; set; }
         public EntityManageKind ManageKind { get; set; }
         public string SetFriendlyName { get; set; }
         public string SetName { get; set; }

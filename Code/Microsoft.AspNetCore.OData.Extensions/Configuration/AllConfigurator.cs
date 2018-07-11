@@ -120,11 +120,28 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
 
         [ConfigureEntity]
         public void ConfigureIdentityUser<T, TKey>(EdmModel model)
-            where T : IdentityUser<TKey> 
+            where T : IdentityUser<TKey>
             where TKey : IEquatable<TKey>
         {
             model.Property<T>(p => p.Id).SetReadOnly();
-            model.Property<T>(p => p.Email).SetHint("Iql:EmailAddress");
+            model.Property<T>(p => p.Email).SetHint(KnownHints.EmailAddress);
+            model.Entity<T>().SetTitlePropertyName(nameof(IdentityUser.UserName));
+        }
+
+        [ConfigureEntity]
+        public void ConfigureName<T>(EdmModel model)
+            where T : IHasName
+        {
+            model.Entity<T>().SetTitlePropertyName(nameof(IHasName.Name));
+            model.Property<T>(e => e.Name).SetNullable(false);
+        }
+
+        [ConfigureEntity]
+        public void ConfigureTitle<T>(EdmModel model)
+            where T : IHasTitle
+        {
+            model.Entity<T>().SetTitlePropertyName(nameof(IHasTitle.Title));
+            model.Property<T>(e => e.Title).SetNullable(false);
         }
 
         [ConfigureEntity]

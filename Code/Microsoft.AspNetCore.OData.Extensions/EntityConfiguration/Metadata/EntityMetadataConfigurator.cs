@@ -28,6 +28,18 @@ namespace Brandless.AspNetCore.OData.Extensions
             return this;
         }
 
+        public EntityMetadataConfigurator SetTitlePropertyName(string name)
+        {
+            Metadata.TitlePropertyName = name;
+            return this;
+        }
+
+        public EntityMetadataConfigurator SetPreviewPropertyName(string name)
+        {
+            Metadata.PreviewPropertyName = name;
+            return this;
+        }
+
         public EntityMetadataConfigurator SetDefaultSortDescending(bool descending = true)
         {
             Metadata.DefaultSortDescending = descending;
