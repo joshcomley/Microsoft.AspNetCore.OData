@@ -25,11 +25,9 @@ namespace Microsoft.AspNetCore.OData
 
         private static IEnumerable<Assembly> GetCandidateAssemblies(IHostingEnvironment environment)
         {
-            var parts = DefaultAssemblyPartDiscoveryProvider.DiscoverAssemblyParts(environment.ApplicationName);
-            return parts
-                .OfType<AssemblyPart>()
-                .Select(p => p.Assembly)
-                .ToArray();
+            var entryAssemblies = Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(Assembly.Load).ToList();
+            var callingAssemblies = Assembly.GetCallingAssembly().GetReferencedAssemblies().Select(Assembly.Load).ToList();
+            return entryAssemblies.Concat(callingAssemblies).Distinct();
         }
     }
 }

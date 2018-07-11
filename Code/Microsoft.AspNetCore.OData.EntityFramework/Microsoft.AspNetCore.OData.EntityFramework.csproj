@@ -1,27 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.0;netstandard2.0</TargetFrameworks>
     <AssemblyName>Brandless.AspNetCore.OData.EntityFramework</AssemblyName>
   </PropertyGroup>
-
+  <Choose>
+    <When Condition="'$(Configuration)' == 'Release'">
+      <ItemGroup>
+        <PackageReference Include="Brandless" Version="0.0.12-0003-0-Release" />
+        <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10079-0-Release" />
+        <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10079-0-Release" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.0.2-alpha0021-0-Release" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.0.2-alpha0021-0-Release" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(Configuration)' == 'Debug'">
+      <ItemGroup>
+        <PackageReference Include="Brandless" Version="0.0.12-0003-1-Debug" />
+        <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10079-1-Debug" />
+        <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10079-1-Debug" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.0.2-alpha0021-1-Debug" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.0.2-alpha0021-1-Debug" />
+      </ItemGroup>
+    </When>
+  </Choose>
   <ItemGroup>
-    <PackageReference Include="Brandless" Version="0.0.11" />
-    <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10035" />
-    <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10035" />
-    <PackageReference Include="EPPlus" Version="4.5.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.2.0.1-preview4-t002" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.2.0.1-preview4-t002" />
+    <PackageReference Include="EPPlus" Version="4.5.2.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="2.1.1" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Microsoft.AspNetCore.OData.Extensions\Microsoft.AspNetCore.OData.Extensions.csproj" />
     <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Folder Include="Users\" />
   </ItemGroup>
-
 </Project>

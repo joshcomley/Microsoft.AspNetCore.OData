@@ -827,10 +827,15 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         #endregion DELETE
 
+        public virtual bool UpdateRevisionable { get; set; } = true;
         #region Intercepts
         public virtual Task OnBeforePostAndPatchAsync(T currentEntity, T patchEntity, JObject jObject)
         {
             //ClearClassProperties(patchEntity);
+            if (UpdateRevisionable && patchEntity is IRevisionable)
+            {
+                (patchEntity as IRevisionable).RevisionKey = DateTime.Now.Ticks.ToString();
+            }
             return Task.FromResult(true);
         }
 

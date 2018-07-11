@@ -1,36 +1,42 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.0;netstandard2.0</TargetFrameworks>
     <AssemblyName>Brandless.AspNetCore.OData.Extensions</AssemblyName>
     <RootNamespace>Brandless.AspNetCore.OData.Extensions</RootNamespace>
   </PropertyGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Vocabularies\CapabilitiesVocabularies.xml" />
     <EmbeddedResource Include="Vocabularies\CoreVocabularies.xml" />
     <EmbeddedResource Include="Vocabularies\MeasuresVocabularies.xml" />
   </ItemGroup>
-
+  <Choose>
+    <When Condition="'$(Configuration)' == 'Release'">
+      <ItemGroup>
+        <PackageReference Include="Brandless.Data" Version="0.0.40017-10079-0-Release" />
+        <PackageReference Include="Iql" Version="0.0.28-preview20172-0-Release" />
+        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20172-0-Release" />
+        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20172-0-Release" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(Configuration)' == 'Debug'">
+      <ItemGroup>
+        <PackageReference Include="Brandless.Data" Version="0.0.40017-10079-1-Debug" />
+        <PackageReference Include="Iql" Version="0.0.28-preview20172-1-Debug" />
+        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20172-1-Debug" />
+        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20172-1-Debug" />
+      </ItemGroup>
+    </When>
+  </Choose>
   <ItemGroup>
-    <PackageReference Include="Brandless.Data" Version="0.0.40017-10035" />
-    <PackageReference Include="Iql" Version="0.0.28-preview20143" />
-    <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20143" />
-    <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20143" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.0.3" />
     <PackageReference Include="Microsoft.Data.Edm" Version="5.8.3" />
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="2.0.3" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Microsoft.AspNetCore.OData\Microsoft.AspNetCore.OData.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Reference Include="Microsoft.Extensions.Identity.Stores">
       <HintPath>C:\Users\Josh Comley\.nuget\packages\microsoft.extensions.identity.stores\2.0.1\lib\netstandard2.0\Microsoft.Extensions.Identity.Stores.dll</HintPath>
     </Reference>
   </ItemGroup>
-
 </Project>

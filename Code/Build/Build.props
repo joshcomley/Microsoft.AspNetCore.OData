@@ -1,6 +1,7 @@
 <Project>
   <Import Project="..\..\version.xml" />
   <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;netcoreapp2.1</TargetFrameworks>
     <PackageTags>Microsoft.AspNetCore.OData</PackageTags>
     <Product>Microsoft.AspNetCore.OData</Product>
     <SignAssembly>True</SignAssembly>
