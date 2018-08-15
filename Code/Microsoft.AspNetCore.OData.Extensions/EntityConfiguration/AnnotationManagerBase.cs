@@ -2,9 +2,6 @@
 using System.Linq;
 using System.Reflection;
 using System.Xml;
-using Iql.Conversion;
-using Iql.DotNet;
-using Iql.Entities;
 using Microsoft.Data.Edm;
 using Microsoft.OData.Edm.Csdl;
 using Microsoft.OData.Edm.Validation;
@@ -29,9 +26,8 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
 
         static AnnotationManagerBase()
         {
-            IqlExpressionConversion.DefaultExpressionConverter = () => new DotNetExpressionConverter();
             IEnumerable<EdmError> errors;
-            var assembly = typeof(ODataExtensionsEdmModelExtensions).GetTypeInfo().Assembly;
+            var assembly = typeof(AnnotationManagerBase).GetTypeInfo().Assembly;
             var resourceNames = assembly.GetManifestResourceNames();
             var resourceName = resourceNames.Single(rn => rn.EndsWith(".Vocabularies.MeasuresVocabularies.xml"));
             using (var stream = assembly.GetManifestResourceStream(resourceName))
@@ -76,9 +72,5 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
         {
             public const string Property = "Property";
         }
-
-        public abstract void SetMetadataAnnotation(
-            IMetadata metadata = null,
-            string property = null);
     }
 }

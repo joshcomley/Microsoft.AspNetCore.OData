@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Brandless.AspNetCore.OData.Extensions.Extensions;
 using Microsoft.AspNetCore.OData.Extensions;
 using Microsoft.OData.Edm;
 using Microsoft.OData.Edm.Csdl;
@@ -31,35 +32,11 @@ namespace Brandless.AspNetCore.OData.Extensions.EntityConfiguration
                 var annotation = new EdmVocabularyAnnotation(target, AnnotationManagerBase.IqlConfigurationTerm, coll);
                 annotation.SetSerializationLocation(Model, target.ToSerializationLocation());
                 Model.AddVocabularyAnnotation(annotation);
-
-                RulesAnnotation = new CollectionAnnotation<TEntity>("Rules", this, model);
-                DisplayFormattingAnnotation = new CollectionAnnotation<TEntity>("DisplayFormatters", this, model);
             }
         }
 
         public bool Valid { get; set; } = true;
         public EdmModel Model { get; }
         public List<EdmLabeledExpression> ChildExpressions { get; } = new List<EdmLabeledExpression>();
-        public CollectionAnnotation<TEntity> RulesAnnotation { get; }
-
-        public EdmLabeledExpression MetadataAnnotation
-        {
-            get => _metadataAnnotation;
-            set
-            {
-                if (_metadataAnnotation != null && ChildExpressions.Contains(_metadataAnnotation))
-                {
-                    ChildExpressions.Remove(_metadataAnnotation);
-                }
-
-                if (value != null)
-                {
-                    ChildExpressions.Add(value);
-                }
-                _metadataAnnotation = value;
-            }
-        }
-
-        public CollectionAnnotation<TEntity> DisplayFormattingAnnotation { get; set; }
     }
 }

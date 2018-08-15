@@ -6,8 +6,8 @@
     <When Condition="'$(Configuration)' == 'Release'">
       <ItemGroup>
         <PackageReference Include="Brandless" Version="0.0.12-0003-0-Release" />
-        <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10079-0-Release" />
-        <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10079-0-Release" />
+        <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10086-0-Release" />
+        <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10086-0-Release" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.0.2-alpha0021-0-Release" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.0.2-alpha0021-0-Release" />
       </ItemGroup>
@@ -15,8 +15,8 @@
     <When Condition="'$(Configuration)' == 'Debug'">
       <ItemGroup>
         <PackageReference Include="Brandless" Version="0.0.12-0003-1-Debug" />
-        <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10079-1-Debug" />
-        <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10079-1-Debug" />
+        <PackageReference Include="Brandless.Data.EntityFramework" Version="0.0.40017-10086-1-Debug" />
+        <PackageReference Include="Brandless.Data.Mptt" Version="0.0.40017-10086-1-Debug" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.0.2-alpha0021-1-Debug" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.0.2-alpha0021-1-Debug" />
       </ItemGroup>

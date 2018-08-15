@@ -11,18 +11,15 @@
   <Choose>
     <When Condition="'$(Configuration)' == 'Release'">
       <ItemGroup>
-        <PackageReference Include="Brandless.Data" Version="0.0.40017-10079-0-Release" />
-        <PackageReference Include="Iql" Version="0.0.28-preview20172-0-Release" />
-        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20172-0-Release" />
-        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20172-0-Release" />
+        <PackageReference Include="Brandless.Data" Version="0.0.40017-10086-0-Release" />
+        <PackageReference Include="Iql" Version="0.0.28-preview20195-0-Release" />
+        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20195-0-Release" />
+        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20195-0-Release" />
       </ItemGroup>
     </When>
     <When Condition="'$(Configuration)' == 'Debug'">
       <ItemGroup>
-        <PackageReference Include="Brandless.Data" Version="0.0.40017-10079-1-Debug" />
-        <PackageReference Include="Iql" Version="0.0.28-preview20172-1-Debug" />
-        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20172-1-Debug" />
-        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20172-1-Debug" />
+        <PackageReference Include="Brandless.Data" Version="0.0.40017-10086-1-Debug" />
       </ItemGroup>
     </When>
   </Choose>

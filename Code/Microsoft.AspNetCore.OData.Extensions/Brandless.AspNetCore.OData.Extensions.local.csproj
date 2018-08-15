@@ -4,7 +4,7 @@
     <RootNamespace>Brandless.AspNetCore.OData.Extensions</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>bin\local\Debug\netcoreapp2.0\</OutputPath>
+    <OutputPath>bin\local\Debug\netcoreapp2.1\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Vocabularies\CapabilitiesVocabularies.xml" />
@@ -22,17 +22,17 @@
     </When>
     <When Condition="'$(Configuration)' == 'Debug'">
       <ItemGroup>
-        <PackageReference Include="Brandless.Data" Version="0.0.40017-10039" />
-        <PackageReference Include="Iql" Version="0.0.28-preview20149" />
-        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20149" />
-        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20149" />
+        <PackageReference Include="Brandless.Data" Version="0.0.40017-10086-1-Debug" />
+        <PackageReference Include="Iql" Version="0.0.28-preview20217-1-Debug" />
+        <PackageReference Include="Iql.DotNet" Version="0.0.28-preview20217-1-Debug" />
+        <PackageReference Include="Iql.Queryable" Version="0.0.28-preview20217-1-Debug" />
       </ItemGroup>
     </When>
   </Choose>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.2" />
     <PackageReference Include="Microsoft.Data.Edm" Version="5.8.3" />
-    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="2.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="2.1.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Microsoft.AspNetCore.OData\Brandless.AspNetCore.OData.local.csproj" />

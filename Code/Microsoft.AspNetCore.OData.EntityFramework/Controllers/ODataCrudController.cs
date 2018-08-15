@@ -16,6 +16,7 @@ using Brandless.Data.EntityFramework.Crud;
 using Brandless.Data.Models;
 using Brandless.Data.Mptt;
 using Brandless.Extensions;
+using Iql.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.EntityFramework.Export;
@@ -244,19 +245,19 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         {
             var jobject = ResolveJObject();
             await OnValidate(PostedEntity, jobject);
-            return await Post(PostedEntity, jobject);
+            return await Post(PostedEntity, jobject, new JObject());
         }
 
-        protected virtual async Task<IActionResult> Post(T patchEntity, JObject value)
+        protected virtual async Task<IActionResult> Post(T patchEntity, JObject postedValues, JObject originalValues)
         {
             if (ModelState.IsValid)
             {
                 var entity = Activator.CreateInstance<T>();
                 InitializeEntity(patchEntity, new List<object>());
-                await OnBeforePostAndPatchAsync(entity, patchEntity, value);
-                await OnBeforePostAsync(entity, patchEntity, value);
+                await OnBeforePostAndPatchAsync(entity, patchEntity, postedValues, originalValues);
+                await OnBeforePostAsync(entity, patchEntity, postedValues, originalValues);
                 ModelState.Clear();
-                await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, value);
+                await PatchObjectWithLegalPropertiesAsync(entity, patchEntity, postedValues, originalValues);
                 if (!ModelState.IsValid)
                 {
                     return this.ODataModelStateError();
@@ -274,8 +275,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 {
                     return ResolveHttpResult(result);
                 }
-                await OnAfterPostAsync(entity, patchEntity, value);
-                await OnAfterPostAndPatchAsync(entity, patchEntity, value);
+                await OnAfterPostAsync(entity, patchEntity, postedValues, originalValues);
+                await OnAfterPostAndPatchAsync(entity, patchEntity, postedValues, originalValues);
                 return Ok(entity);
             }
             return this.ODataModelStateError();
@@ -314,13 +315,13 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
         }
 
         public virtual async Task<bool> ValidateEntityAsync<TEntity>(TEntity entity, Dictionary<object, bool> validated = null, string path = "", bool isNew = false)
+            where TEntity : class
         {
             validated = validated ?? new Dictionary<object, bool>();
             if (validated.ContainsKey(entity))
             {
                 return validated[entity];
             }
-            var modelConfiguration = ModelConfiguration.ForType<TEntity>();
             var accessor = string.IsNullOrWhiteSpace(path) ? "" : ".";
             var isValid = !string.IsNullOrWhiteSpace(path) || TryValidateModel(entity);
             validated.Add(entity, isValid);
@@ -329,36 +330,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 isValid = false;
                 AddModelError<TEntity>("", "An entity with this key already exists", "EntityWithKeyAlreadyExists");
             }
-            if (modelConfiguration != null)
-            {
-                if (modelConfiguration.ValidationMap?.EntityValidations?.Any() == true)
-                {
-                    foreach (var entityValidation in modelConfiguration.ValidationMap.EntityValidations)
-                    {
-                        var iqlValidationResult = entityValidation.Run(entity);
-                        isValid = isValid && iqlValidationResult;
-                        if (!iqlValidationResult)
-                        {
-                            AddModelError<TEntity>(path, entityValidation.Message, entityValidation.Key);
-                        }
-                    }
-                }
-                if (modelConfiguration.ValidationMap?.PropertyValidations?.Any() == true)
-                {
-                    foreach (var propertyValidationCollection in modelConfiguration.ValidationMap.PropertyValidations)
-                    {
-                        foreach (var propertyValidation in propertyValidationCollection.Rules)
-                        {
-                            var iqlValidationResult = propertyValidation.Run(entity);
-                            isValid = isValid && iqlValidationResult;
-                            if (!iqlValidationResult)
-                            {
-                                AddModelError<TEntity>($"{path}{accessor}{propertyValidationCollection.PropertyName}", propertyValidation.Message, propertyValidation.Key);
-                            }
-                        }
-                    }
-                }
-            }
+            isValid = await ValidateEntityAsync(entity, path, isValid, accessor);
             var entityType = entity.GetType();
             foreach (var property in entityType.GetRuntimeProperties())
             {
@@ -400,6 +372,13 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             }
             return isValid;
         }
+
+        public virtual Task<bool> ValidateEntityAsync<TEntity>(TEntity entity, string path, bool isValid, string accessor)
+            where TEntity : class
+        {
+            return Task.FromResult(isValid);
+        }
+
         #endregion VALIDATION
 
         #region PATCH
@@ -411,15 +390,17 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return await Patch(keys, ResolveJObject());
         }
 
-        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject value)
+        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject postedValues)
         {
-            keys = await CheckKeyChangeAsync(keys, value);
+            keys = await CheckKeyChangeAsync(keys, postedValues);
             var entity = Crud.Secured.Find(keys.Cast<object>().ToArray());
             if (entity == null)
             {
                 return NotFound();
             }
-            return await Patch(keys, ResolveJObject(), entity);
+
+            var originalValues = JObject.FromObject(entity);
+            return await Patch(keys, ResolveJObject(), entity, originalValues);
         }
 
         protected virtual async Task<KeyValuePair<string, object>[]> CheckKeyChangeAsync(KeyValuePair<string, object>[] keys, JObject value)
@@ -509,18 +490,18 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 : JObject.Parse(PostedJson);
         }
 
-        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject value, T currentDatabaseEntity)
+        protected virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject postedValues, T currentDatabaseEntity, JObject originalValues)
         {
-            await OnValidate(PostedEntity, value);
-            return await Patch(keys, value, currentDatabaseEntity, PostedEntity);
+            await OnValidate(PostedEntity, postedValues);
+            return await Patch(keys, postedValues, currentDatabaseEntity, PostedEntity, originalValues);
         }
 
-        public virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject value, T currentDatabaseEntity, T patchEntity)
+        public virtual async Task<IActionResult> Patch(KeyValuePair<string, object>[] keys, JObject postedValues, T currentDatabaseEntity, T patchEntity, JObject originalValues)
         {
-            await OnBeforePostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
-            await OnBeforePatchAsync(keys, currentDatabaseEntity, patchEntity, value);
+            await OnBeforePostAndPatchAsync(currentDatabaseEntity, patchEntity, postedValues, originalValues);
+            await OnBeforePatchAsync(keys, currentDatabaseEntity, patchEntity, postedValues, originalValues);
             ModelState.Clear();
-            await PatchObjectWithLegalPropertiesAsync(currentDatabaseEntity, patchEntity, value);
+            await PatchObjectWithLegalPropertiesAsync(currentDatabaseEntity, patchEntity, postedValues, originalValues);
             if (!ModelState.IsValid)
             {
                 return this.ODataModelStateError();
@@ -533,7 +514,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
             for (var i = 0; i < keys.Length; i++)
             {
-                if (!Equals(keys[i].Value, value[keys[i].Key]))
+                if (!Equals(keys[i].Value, postedValues[keys[i].Key]))
                 {
                     // We have a key change
                 }
@@ -541,8 +522,8 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             RevisionKeyGenerator?.TryApply(currentDatabaseEntity);
             var oDataActionResult = await UpdateAsync(currentDatabaseEntity);
             var result = ResolveHttpResult(oDataActionResult);
-            await OnAfterPatchAsync(keys, currentDatabaseEntity, patchEntity, value);
-            await OnAfterPostAndPatchAsync(currentDatabaseEntity, patchEntity, value);
+            await OnAfterPatchAsync(keys, currentDatabaseEntity, patchEntity, postedValues, originalValues);
+            await OnAfterPostAndPatchAsync(currentDatabaseEntity, patchEntity, postedValues, originalValues);
             return result;
         }
 
@@ -583,30 +564,30 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return updateResult;
         }
 
-        protected virtual async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject value)
+        protected virtual async Task PatchObjectWithLegalPropertiesAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
-            await OnBeforeFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
-            await PatchEntityPropertiesAsync(currentEntity, patchEntity, value, typeof(T));
-            await OnAfterFilterLegalPropertiesAsync(currentEntity, patchEntity, value);
+            await OnBeforeFilterLegalPropertiesAsync(currentEntity, patchEntity, postedValues, originalValues);
+            await PatchEntityPropertiesAsync(currentEntity, patchEntity, postedValues, typeof(T), originalValues);
+            await OnAfterFilterLegalPropertiesAsync(currentEntity, patchEntity, postedValues, originalValues);
         }
 
-        protected virtual async Task PatchEntityPropertiesAsync(object currentEntity, object patchEntity, JObject value, Type entityType, string path = "")
+        protected virtual async Task PatchEntityPropertiesAsync(object currentEntity, object patchEntity, JObject postedValues, Type entityType, JObject originalValues, string path = "")
         {
             if (PatchEntityPropertiesAsyncMethod == null)
             {
                 PatchEntityPropertiesAsyncMethod = GetType().GetRuntimeMethods().SingleOrDefault(m => m.Name == nameof(PatchEntityPropertiesAsync) && m.GetGenericArguments().Length == 1);
             }
             await (Task)PatchEntityPropertiesAsyncMethod.MakeGenericMethod(entityType)
-                .Invoke(this, new object[] { currentEntity, patchEntity, value, path });
+                .Invoke(this, new object[] { currentEntity, patchEntity, postedValues, originalValues, path });
         }
 
         public MethodInfo PatchEntityPropertiesAsyncMethod { get; set; }
 
         protected virtual async Task PatchEntityPropertiesAsync<TEntity>(object currentEntity, object patchEntity,
-            JObject value, string path)
+            JObject postedValues, JObject originalValues, string path)
         {
             var originalPath = path;
-            foreach (var property in value)
+            foreach (var property in postedValues)
             {
                 if (!ShouldPatchEntityProperty(currentEntity, patchEntity, property.Key))
                 {
@@ -624,7 +605,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                 // Set the value to the value of the same property on the patch entity
                 var propertyType = propertyInfo.PropertyType;
                 var canBeNull = !propertyType.IsValueType || Nullable.GetUnderlyingType(propertyType) != null;
-                if (!canBeNull && value[propertyInfo.Name].IsNull())
+                if (!canBeNull && postedValues[propertyInfo.Name].IsNull())
                 {
                     AddModelError<TEntity>(path, "Value cannot be empty", "DisallowedNull");
                 }
@@ -746,7 +727,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
                                 {
                                     index = submittedList.IndexOf(child);
                                 }
-                                await PatchEntityPropertiesAsync(child, submittedList[index], property.Value[index] as JObject, childEntityType, $"{path}.{propertyInfo.Name}[{index}]".TrimStart('.'));
+                                await PatchEntityPropertiesAsync(child, submittedList[index], property.Value[index] as JObject, childEntityType, originalValues, $"{path}.{propertyInfo.Name}[{index}]".TrimStart('.'));
                             }
                             propertyInfo.SetValue(currentEntity, dbList);
                         }
@@ -808,7 +789,10 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             //{
             //    return securityFilterResult;
             //}
-            var result = await DeleteEntity(keys, Crud.Secured.Find(keys));
+            var entity = Crud.Secured.Find(keys);
+            await OnBeforeDeleteAsync(keys, entity);
+            var result = await DeleteEntityAsync(keys, entity);
+            await OnAfterDeleteAsync(keys, entity, result);
             switch (result.Result)
             {
                 case DeleteEntityResult.NotFound:
@@ -819,7 +803,19 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return Ok();
         }
 
-        protected virtual async Task<DeleteActionResult> DeleteEntity(KeyValuePair<string, object>[] key, T entity)
+        protected virtual Task OnBeforeDeleteAsync(KeyValuePair<string, object>[] key,
+            T entity)
+        {
+            return Task.FromResult(true);
+        }
+
+        protected virtual Task OnAfterDeleteAsync(KeyValuePair<string, object>[] key,
+            T entity, DeleteActionResult result)
+        {
+            return Task.FromResult(true);
+        }
+
+        protected virtual async Task<DeleteActionResult> DeleteEntityAsync(KeyValuePair<string, object>[] key, T entity)
         {
             var result = await Crud.Secured.DeleteAndSaveAsync(key);
             return result;
@@ -829,7 +825,7 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
 
         public virtual bool UpdateRevisionable { get; set; } = true;
         #region Intercepts
-        public virtual Task OnBeforePostAndPatchAsync(T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnBeforePostAndPatchAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
             //ClearClassProperties(patchEntity);
             if (UpdateRevisionable && patchEntity is IRevisionable)
@@ -866,12 +862,12 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             }
         }
 
-        public virtual Task OnAfterPostAndPatchAsync(T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnAfterPostAndPatchAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
             return Task.FromResult(true);
         }
 
-        public virtual Task OnBeforePostAsync(T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnBeforePostAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
             return Task.FromResult(true);
         }
@@ -938,28 +934,30 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return false;
         }
 
-        public virtual Task OnAfterPostAsync(T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnAfterPostAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
-            return TryProcessNestedSet(currentEntity, null, null);
+            //return TryProcessNestedSet(currentEntity, null, null);
+            return Task.FromResult(true);
         }
 
-        public virtual Task OnBeforePatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnBeforePatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
-            return TryProcessNestedSet(patchEntity, currentEntity, jObject);
+            //return TryProcessNestedSet(patchEntity, currentEntity, postedValues);
+            return Task.FromResult(true);
         }
 
-        public virtual Task OnAfterPatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnAfterPatchAsync(KeyValuePair<string, object>[] id, T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
             return Task.FromResult(true);
             //return TryProcessNestedSet(patchEntity, currentEntity);
         }
 
-        public virtual Task OnBeforeFilterLegalPropertiesAsync(T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnBeforeFilterLegalPropertiesAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
             return Task.FromResult(true);
         }
 
-        public virtual Task OnAfterFilterLegalPropertiesAsync(T currentEntity, T patchEntity, JObject jObject)
+        public virtual Task OnAfterFilterLegalPropertiesAsync(T currentEntity, T patchEntity, JObject postedValues, JObject originalValues)
         {
             return Task.FromResult(true);
         }
@@ -990,115 +988,115 @@ namespace Microsoft.AspNetCore.OData.EntityFramework.Controllers
             return UserManager.GetUserId(HttpContext.User);
         }
 
-        protected virtual async Task ProcessNestedSetAsync<TKey, TNullableKey, TTreeKey>(
-            object mptt,
-            object existing = null,
-            JObject patch = null)
-        {
-            var tableName = Data.Context.Model.FindEntityType(mptt.GetType()).Relational().TableName;
-            var manager =
-                new MpttManager<TKey, TNullableKey, TTreeKey>(() => Services.GetService<TDbContextSecured>(), default(TTreeKey), tableName: tableName);
-            ConfigureNestedSetsManager(manager);
-            var idProperty = typeof(T).GetProperty(nameof(IMpttDynamic<TKey, TNullableKey, TTreeKey>.Id));
+        //protected virtual async Task ProcessNestedSetAsync<TKey, TNullableKey, TTreeKey>(
+        //    object mptt,
+        //    object existing = null,
+        //    JObject patch = null)
+        //{
+        //    var tableName = Data.Context.Model.FindEntityType(mptt.GetType()).Relational().TableName;
+        //    var manager =
+        //        new MpttManager<TKey, TNullableKey, TTreeKey>(() => Services.GetService<TDbContextSecured>(), default(TTreeKey), tableName: tableName);
+        //    ConfigureNestedSetsManager(manager);
+        //    var idProperty = typeof(T).GetProperty(nameof(IMpttDynamic<TKey, TNullableKey, TTreeKey>.Id));
 
-            TKey GetId(object entity)
-            {
-                return (TKey)idProperty.GetValue(entity);
-            }
+        //    TKey GetId(object entity)
+        //    {
+        //        return (TKey)idProperty.GetValue(entity);
+        //    }
 
-            TProperty Get<TProperty>(object entity, string propertyName)
-            {
-                return (TProperty)typeof(T).GetProperty(propertyName).GetValue(entity);
-            }
-            void Set(object entity, string propertyName, object value)
-            {
-                typeof(T).GetProperty(propertyName).SetValue(entity, value);
-            }
-            if (existing == null)
-            {
-                manager.TreeKey = Get<TTreeKey>(mptt, manager.KeyColumnName);
-                while (true)
-                {
-                    var parentId = Get<TNullableKey>(mptt, manager.ParentIdColumnName);
-                    if (!Equals(default(TNullableKey), parentId))
-                    {
-                        await manager.InsertAsChildOfAsync(GetId(mptt), parentId);
-                        break;
-                    }
+        //    TProperty Get<TProperty>(object entity, string propertyName)
+        //    {
+        //        return (TProperty)typeof(T).GetProperty(propertyName).GetValue(entity);
+        //    }
+        //    void Set(object entity, string propertyName, object value)
+        //    {
+        //        typeof(T).GetProperty(propertyName).SetValue(entity, value);
+        //    }
+        //    if (existing == null)
+        //    {
+        //        manager.TreeKey = Get<TTreeKey>(mptt, manager.KeyColumnName);
+        //        while (true)
+        //        {
+        //            var parentId = Get<TNullableKey>(mptt, manager.ParentIdColumnName);
+        //            if (!Equals(default(TNullableKey), parentId))
+        //            {
+        //                await manager.InsertAsChildOfAsync(GetId(mptt), parentId);
+        //                break;
+        //            }
 
-                    var leftOf = Get<TNullableKey>(mptt, manager.LeftOfColumnName);
-                    if (!Equals(default(TNullableKey), leftOf))
-                    {
-                        await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)leftOf);
-                        break;
-                    }
+        //            var leftOf = Get<TNullableKey>(mptt, manager.LeftOfColumnName);
+        //            if (!Equals(default(TNullableKey), leftOf))
+        //            {
+        //                await manager.InsertToLeftOfAsync(GetId(mptt), (TKey)(object)leftOf);
+        //                break;
+        //            }
 
-                    var rightOf = Get<TNullableKey>(mptt, manager.LeftOfColumnName);
-                    if (!Equals(default(TNullableKey), rightOf))
-                    {
-                        await manager.InsertToRightOfAsync(GetId(mptt), (TKey)(object)rightOf);
-                        break;
-                    }
+        //            var rightOf = Get<TNullableKey>(mptt, manager.LeftOfColumnName);
+        //            if (!Equals(default(TNullableKey), rightOf))
+        //            {
+        //                await manager.InsertToRightOfAsync(GetId(mptt), (TKey)(object)rightOf);
+        //                break;
+        //            }
 
-                    await manager.InsertAsChildOfAsync(GetId(mptt));
-                    break;
-                }
+        //            await manager.InsertAsChildOfAsync(GetId(mptt));
+        //            break;
+        //        }
 
-            }
-            else
-            {
-                manager.TreeKey = Get<TTreeKey>(existing, manager.KeyColumnName);
-                var pairs = new[]
-                {
-                    (Column: manager.ParentIdColumnName, Kind: NodeMoveKind.Beneath),
-                    (Column: manager.LeftOfColumnName, Kind: NodeMoveKind.Left),
-                    (Column: manager.RightOfColumnName, Kind: NodeMoveKind.Right),
-                };
-                var updateRan = false;
-                foreach (var pair in pairs)
-                {
-                    if (patch.ContainsKey(pair.Column))
-                    {
-                        TNullableKey newPartner = patch[pair.Column].GetValue<TNullableKey>();
-                        if (!Equals(newPartner, Get<TNullableKey>(existing, pair.Column)))
-                        {
-                            await manager.MoveToAsync(GetId(mptt), newPartner, pair.Kind);
-                        }
+        //    }
+        //    else
+        //    {
+        //        manager.TreeKey = Get<TTreeKey>(existing, manager.KeyColumnName);
+        //        var pairs = new[]
+        //        {
+        //            (Column: manager.ParentIdColumnName, Kind: NodeMoveKind.Beneath),
+        //            (Column: manager.LeftOfColumnName, Kind: NodeMoveKind.Left),
+        //            (Column: manager.RightOfColumnName, Kind: NodeMoveKind.Right),
+        //        };
+        //        var updateRan = false;
+        //        foreach (var pair in pairs)
+        //        {
+        //            if (patch.ContainsKey(pair.Column))
+        //            {
+        //                TNullableKey newPartner = patch[pair.Column].GetValue<TNullableKey>();
+        //                if (!Equals(newPartner, Get<TNullableKey>(existing, pair.Column)))
+        //                {
+        //                    await manager.MoveToAsync(GetId(mptt), newPartner, pair.Kind);
+        //                }
 
-                        updateRan = true;
-                        break;
-                    }
-                }
+        //                updateRan = true;
+        //                break;
+        //            }
+        //        }
 
-                if (updateRan)
-                {
-                    var updated = await Services.GetService<TDbContextSecured>().Set<T>().FindAsync(GetId(mptt));
-                    Set(mptt, manager.ParentIdColumnName, Get<TKey>(updated, manager.ParentIdColumnName));
-                    Set(mptt, manager.LevelColumnName, Get<TKey>(updated, manager.LevelColumnName));
-                    Set(mptt, manager.LeftColumnName, Get<TKey>(updated, manager.LeftColumnName));
-                    Set(mptt, manager.RightColumnName, Get<TKey>(updated, manager.RightColumnName));
-                    Set(existing, manager.ParentIdColumnName, Get<TKey>(updated, manager.ParentIdColumnName));
-                    Set(existing, manager.LevelColumnName, Get<TKey>(updated, manager.LevelColumnName));
-                    Set(existing, manager.LeftColumnName, Get<TKey>(updated, manager.LeftColumnName));
-                    Set(existing, manager.RightColumnName, Get<TKey>(updated, manager.RightColumnName));
-                }
-            }
-        }
+        //        if (updateRan)
+        //        {
+        //            var updated = await Services.GetService<TDbContextSecured>().Set<T>().FindAsync(GetId(mptt));
+        //            Set(mptt, manager.ParentIdColumnName, Get<TKey>(updated, manager.ParentIdColumnName));
+        //            Set(mptt, manager.LevelColumnName, Get<TKey>(updated, manager.LevelColumnName));
+        //            Set(mptt, manager.LeftColumnName, Get<TKey>(updated, manager.LeftColumnName));
+        //            Set(mptt, manager.RightColumnName, Get<TKey>(updated, manager.RightColumnName));
+        //            Set(existing, manager.ParentIdColumnName, Get<TKey>(updated, manager.ParentIdColumnName));
+        //            Set(existing, manager.LevelColumnName, Get<TKey>(updated, manager.LevelColumnName));
+        //            Set(existing, manager.LeftColumnName, Get<TKey>(updated, manager.LeftColumnName));
+        //            Set(existing, manager.RightColumnName, Get<TKey>(updated, manager.RightColumnName));
+        //        }
+        //    }
+        //}
 
-        public virtual void ConfigureNestedSetsManager<TKey, TNullableKey, TTreeKey>(MpttManager<TKey, TNullableKey, TTreeKey> manager)
-        {
+        //public virtual void ConfigureNestedSetsManager<TKey, TNullableKey, TTreeKey>(MpttManager<TKey, TNullableKey, TTreeKey> manager)
+        //{
 
-        }
+        //}
 
-        protected virtual async Task TryProcessNestedSet(T currentEntity, T existingEntity, JObject patch)
-        {
-            var baseType = typeof(T).TryGetBaseType(typeof(IMpttDynamic<,,>));
-            if (baseType != null)
-            {
-                var method = GetType().GetMethod(nameof(ProcessNestedSetAsync), BindingFlags.Instance | BindingFlags.NonPublic);
-                await (Task)method.MakeGenericMethod(baseType.Type.GenericTypeArguments.ToArray())
-                    .Invoke(this, new object[] { currentEntity, existingEntity, patch });
-            }
-        }
+        //protected virtual async Task TryProcessNestedSet(T currentEntity, T existingEntity, JObject patch)
+        //{
+        //    var baseType = typeof(T).TryGetBaseType(typeof(IMpttDynamic<,,>));
+        //    if (baseType != null)
+        //    {
+        //        var method = GetType().GetMethod(nameof(ProcessNestedSetAsync), BindingFlags.Instance | BindingFlags.NonPublic);
+        //        await (Task)method.MakeGenericMethod(baseType.Type.GenericTypeArguments.ToArray())
+        //            .Invoke(this, new object[] { currentEntity, existingEntity, patch });
+        //    }
+        //}
     }
 }

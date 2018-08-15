@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using Brandless.AspNetCore.OData.Extensions.EntityConfiguration;
 using Brandless.AspNetCore.OData.Extensions.Extensions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.OData.Builder;
@@ -42,17 +43,27 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                     {
                         bindingName = functionAttribute.BindingName ?? "key";
                     }
-                    configuration = (OperationConfiguration)MethodTypedInfo.MakeGenericMethod(
-                            functionAttribute.ForType ?? functionAttribute.ForCollection)
-                        .Invoke(
-                            null,
-                            new object[]
-                            {
-                                builder,
-                                method.Name,
-                                false,
-                                functionAttribute.ForCollection != null
-                            });
+
+                    var concreteMethod = MethodTypedInfo.MakeGenericMethod(
+                        functionAttribute.ForType ?? functionAttribute.ForCollection);
+                    try
+                    {
+                        configuration = (OperationConfiguration) concreteMethod
+                            .Invoke(
+                                null,
+                                new object[]
+                                {
+                                    builder,
+                                    method.Name,
+                                    false,
+                                    functionAttribute.ForCollection != null
+                                });
+                    }
+                    catch (Exception e)
+                    {
+                        throw new Exception(
+                            $"ForType: {functionAttribute.ForType?.Name}, ForCollection: {functionAttribute.ForCollection?.Name}, concrete method: {concreteMethod}", e);
+                    }
                 }
                 else
                 {
@@ -128,8 +139,6 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
     }
     public class ODataConfigurator<TService>
     {
-        public List<Action<EdmModel>> ModelConfigurators { get; } = new List<Action<EdmModel>>();
-
         public ODataConfigurator(string @namespace, Assembly configurationAssembly)
         {
             Namespace = @namespace;
@@ -150,7 +159,8 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
         //    return Configure(app, out modelBuilder);
         //}
 
-        public IEdmModel Configure(IAssemblyProvider assemblyProvider, IServiceProvider serviceProvider, out ODataModelBuilder modelBuilder)
+        public IEdmModel Configure(IAssemblyProvider assemblyProvider,
+            IServiceProvider serviceProvider, out ODataModelBuilder modelBuilder)
         {
             // OData actions are HTTP POST
             // OData functions are HTTP GET
@@ -175,37 +185,8 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
 
             var model = builder.GetEdmModel() as EdmModel;
 
-            foreach (var modelConfigurator in ModelConfigurators)
-            {
-                modelConfigurator(model);
-            }
-
-            var configurations = ModelConfiguration.ForModel(model).All();
-            foreach (var configuration in configurations)
-            {
-                ApplyConfiguratiton(model, configuration);
-            }
-
             modelBuilder = builder;
             return model;
-        }
-
-        private static void ApplyConfiguratiton(EdmModel model, IEntityTypeConfiguration configuration)
-        {
-            var entityTypeConfigurationBase = configuration as EntityTypeConfigurationBase;
-            entityTypeConfigurationBase.AnnotationsManagerBase
-                .SetMetadataAnnotation(
-                    configuration.Metadata
-                );
-
-            foreach (var propertyMetadata in configuration.PropertyMetadatas)
-            {
-                entityTypeConfigurationBase.AnnotationsManagerBase
-                    .SetMetadataAnnotation(
-                        propertyMetadata.Value,
-                        propertyMetadata.Key
-                    );
-            }
         }
 
         private static void ApplyAttributes(IAssemblyProvider assemblyProvider, ODataConventionModelBuilder builder)
@@ -244,7 +225,7 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                                         continue;
                                     }
 
-                                    var genericTypeDefinition = method.DeclaringType.GetGenericTypeDefinition();
+                                    var genericTypeDefinition = method.DeclaringType.IsGenericTypeDefinition ? method.DeclaringType : method.DeclaringType.GetGenericTypeDefinition();
                                     var genericArguments = genericTypeDefinition.GetGenericArguments();
                                     var genericParameters = method.DeclaringType.GetGenericArguments();
                                     Type GetTypeFromDefinition(string name)
@@ -260,7 +241,9 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                                                 return genericParameters[i];
                                             }
                                         }
-                                        return null;
+
+                                        throw new ArgumentException(
+                                            $"Unable to find generic parameter with name {name} on type {method.DeclaringType.Name}");
                                     }
                                     if (genericFunctionAttribute != null)
                                     {
@@ -439,9 +422,11 @@ namespace Brandless.AspNetCore.OData.Extensions.Configuration
                 }
             }
 
+            configurators = configurators.OrderByDescending(c => c is IODataEntitySetConfiguratorBoot).ToList();
+
             foreach (var configurator in configurators)
             {
-                configurator.Configure(builder, action => ModelConfigurators.Add(action));
+                configurator.Configure(builder);
             }
         }
     }
